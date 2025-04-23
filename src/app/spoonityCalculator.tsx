@@ -24,6 +24,111 @@ export default function SpoonityCalculator() {
   // State to track PDF generation
   const [isPdfGenerating, setIsPdfGenerating] = React.useState(false);
   
+  // State for user data
+  const [firstName, setFirstName] = React.useState('');
+  const [lastName, setLastName] = React.useState('');
+  const [email, setEmail] = React.useState('');
+  const [phone, setPhone] = React.useState('');
+  const [company, setCompany] = React.useState('');
+  const [role, setRole] = React.useState('');
+  const [country, setCountry] = React.useState('USA'); // Default country
+  const [otherCountry, setOtherCountry] = React.useState('');
+  const [isLoggedIn, setIsLoggedIn] = React.useState(false);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [submitSuccess, setSubmitSuccess] = React.useState(false);
+  const [submitError, setSubmitError] = React.useState('');
+  const [webhookLogs, setWebhookLogs] = React.useState<Array<{timestamp: string; message: string; data: any}>>([]);
+  const [showLogs, setShowLogs] = React.useState(false);
+  const [businessType, setBusinessType] = React.useState('corporate'); // 'corporate' or 'franchise'
+
+  // State for inputs
+  const [plan, setPlan] = React.useState('loyalty');
+  const [stores, setStores] = React.useState(10);
+  const [transactions, setTransactions] = React.useState(1000);
+  const [marketing, setMarketing] = React.useState(10000);
+  const [giftCard, setGiftCard] = React.useState(false);
+  const [pushNotifications, setPushNotifications] = React.useState(false);
+  const [smsEnabled, setSmsEnabled] = React.useState(true); // Pre-select SMS
+  const [smsMessages, setSmsMessages] = React.useState('');
+  const [smsCountry, setSmsCountry] = React.useState('USA');
+  const [independentServer, setIndependentServer] = React.useState(false);
+  const [premiumSupport, setPremiumSupport] = React.useState(false);
+  const [premiumSLA, setPremiumSLA] = React.useState(false);
+  const [cms, setCms] = React.useState(false);
+  const [appType, setAppType] = React.useState('none');
+  const [dataIngestion, setDataIngestion] = React.useState(false);
+  
+  // State for calculated values
+  const [monthlyFees, setMonthlyFees] = React.useState(0);
+  const [setupFees, setSetupFees] = React.useState(0);
+  const [perStore, setPerStore] = React.useState(0);
+  const [activeTab, setActiveTab] = React.useState('inputs');
+  const [totalBeforeSupport, setTotalBeforeSupport] = React.useState(0);
+  
+  // State for fee breakdown
+  const [feeBreakdown, setFeeBreakdown] = React.useState({
+    total: 0,
+    connection: 0,
+    baseLicense: 0,
+    transaction: 0,
+    marketing: 0,
+    giftCard: 0,
+    sms: 0,
+    server: 0,
+    sla: 0,
+    cms: 0,
+    app: 0,
+    support: 0,
+    corporate: 0,
+    franchisee: 0,
+    franchiseePerStore: 0,
+    setup: {
+      total: 0,
+      onboarding: 0,
+      appSetup: 0,
+      dataIngestion: 0
+    }
+  });
+  
+  // Constants
+  const smsRates: Record<string, number> = {
+    'USA': 0.01015,
+    'Mexico': 0.06849,
+    'Argentina': 0.07967,
+    'UAE': 0.12430,
+    'Ecuador': 0.20303,
+    'Australia': 0.039675,
+    'Colombia': 0.00181,
+    'Guatemala': 0.24150,
+    'Costa Rica': 0.05380,
+    'Honduras': 0.13928,
+    'Nicaragua': 0.12813,
+    'El Salvador': 0.07600,
+    'Chile': 0.05955
+  };
+  
+  // Plan info
+  const planDetails: Record<string, { base: number; name: string; description: string; fullDescription: string }> = {
+    loyalty: { 
+      base: 1000, 
+      name: "Spoonity Loyalty", 
+      description: "Core loyalty functionality",
+      fullDescription: "The Spoonity Loyalty plan provides a complete loyalty platform for your business. It includes a base license fee of $1,000/month plus per-store connection fees that scale based on volume. This plan includes unlimited users, CRM functionality, unlimited earning and spending rules, unlimited members, and standard reporting capabilities."
+    },
+    marketing: { 
+      base: 1500, 
+      name: "Spoonity Marketing", 
+      description: "Includes Loyalty + Marketing features",
+      fullDescription: "The Spoonity Marketing plan includes all Loyalty features plus comprehensive marketing capabilities. It starts with a base license fee of $1,500/month plus per-store connection fees. Marketing emails are charged at tiered rates: $0.0006/email for first 100,000, $0.0004/email for 100,001-1,000,000, and $0.0002/email for over 1 million. Push notifications can be added for $0.0045 per push."
+    },
+    intelligence: { 
+      base: 3000, 
+      name: "Spoonity Intelligence", 
+      description: "Includes Loyalty, Marketing + Analytics",
+      fullDescription: "The Spoonity Intelligence plan is our most comprehensive offering. It includes all Loyalty and Marketing features plus advanced analytics. The base license fee is $3,000/month plus per-store connection fees. This plan includes 1 million transactions per month at no additional cost, with data processing fees for higher volumes. It includes comprehensive dashboards for customer analytics, loyalty segments, and cohort analysis."
+    }
+  };
+
   // Add custom font and jsPDF script
   React.useEffect(() => {
     // Add Google Fonts link
@@ -202,94 +307,15 @@ export default function SpoonityCalculator() {
       }
     };
   }, []);
-  // State for user data
-  const [firstName, setFirstName] = React.useState('');
-  const [lastName, setLastName] = React.useState('');
-  const [email, setEmail] = React.useState('');
-  const [phone, setPhone] = React.useState('');
-  const [company, setCompany] = React.useState('');
-  const [role, setRole] = React.useState('');
-  const [country, setCountry] = React.useState('USA'); // Default country
-  const [otherCountry, setOtherCountry] = React.useState('');
-  const [isLoggedIn, setIsLoggedIn] = React.useState(false);
-  const [isSubmitting, setIsSubmitting] = React.useState(false);
-  const [submitSuccess, setSubmitSuccess] = React.useState(false);
-  const [submitError, setSubmitError] = React.useState('');
-  const [webhookLogs, setWebhookLogs] = React.useState([]);
-  const [showLogs, setShowLogs] = React.useState(false);
-  const [businessType, setBusinessType] = React.useState('corporate'); // 'corporate' or 'franchise'
-
-  // State for inputs
-  const [plan, setPlan] = React.useState('loyalty');
-  const [stores, setStores] = React.useState(10);
-  const [transactions, setTransactions] = React.useState(1000);
-  const [marketing, setMarketing] = React.useState(10000);
-  const [giftCard, setGiftCard] = React.useState(false);
-  const [pushNotifications, setPushNotifications] = React.useState(false);
-  const [smsEnabled, setSmsEnabled] = React.useState(true); // Pre-select SMS
-  const [smsMessages, setSmsMessages] = React.useState('');
-  const [smsCountry, setSmsCountry] = React.useState('USA');
-  const [independentServer, setIndependentServer] = React.useState(false);
-  const [premiumSupport, setPremiumSupport] = React.useState(false);
-  const [premiumSLA, setPremiumSLA] = React.useState(false);
-  const [cms, setCms] = React.useState(false);
-  const [appType, setAppType] = React.useState('none');
-  const [dataIngestion, setDataIngestion] = React.useState(false);
-  
-  // State for calculated values
-  const [monthlyFees, setMonthlyFees] = React.useState(0);
-  const [setupFees, setSetupFees] = React.useState(0);
-  const [perStore, setPerStore] = React.useState(0);
-  const [activeTab, setActiveTab] = React.useState('inputs');
-  const [totalBeforeSupport, setTotalBeforeSupport] = React.useState(0);
-  
-  // Constants
-  const smsRates = {
-    'USA': 0.01015,
-    'Mexico': 0.06849,
-    'Argentina': 0.07967,
-    'UAE': 0.12430,
-    'Ecuador': 0.20303,
-    'Australia': 0.039675,
-    'Colombia': 0.00181,
-    'Guatemala': 0.24150,
-    'Costa Rica': 0.05380,
-    'Honduras': 0.13928,
-    'Nicaragua': 0.12813,
-    'El Salvador': 0.07600,
-    'Chile': 0.05955
-  };
-  
-  // Plan info
-  const planDetails = {
-    loyalty: { 
-      base: 1000, 
-      name: "Spoonity Loyalty", 
-      description: "Core loyalty functionality",
-      fullDescription: "The Spoonity Loyalty plan provides a complete loyalty platform for your business. It includes a base license fee of $1,000/month plus per-store connection fees that scale based on volume. This plan includes unlimited users, CRM functionality, unlimited earning and spending rules, unlimited members, and standard reporting capabilities."
-    },
-    marketing: { 
-      base: 1500, 
-      name: "Spoonity Marketing", 
-      description: "Includes Loyalty + Marketing features",
-      fullDescription: "The Spoonity Marketing plan includes all Loyalty features plus comprehensive marketing capabilities. It starts with a base license fee of $1,500/month plus per-store connection fees. Marketing emails are charged at tiered rates: $0.0006/email for first 100,000, $0.0004/email for 100,001-1,000,000, and $0.0002/email for over 1 million. Push notifications can be added for $0.0045 per push."
-    },
-    intelligence: { 
-      base: 3000, 
-      name: "Spoonity Intelligence", 
-      description: "Includes Loyalty, Marketing + Analytics",
-      fullDescription: "The Spoonity Intelligence plan is our most comprehensive offering. It includes all Loyalty and Marketing features plus advanced analytics. The base license fee is $3,000/month plus per-store connection fees. This plan includes 1 million transactions per month at no additional cost, with data processing fees for higher volumes. It includes comprehensive dashboards for customer analytics, loyalty segments, and cohort analysis."
-    }
-  };
 
   // Validate email format
-  const validateEmail = (email) => {
+  const validateEmail = (email: string): boolean => {
     const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return re.test(email);
   };
 
   // Handle login form submission
-  const handleLogin = (e) => {
+  const handleLogin = (e: React.FormEvent): void => {
     e.preventDefault();
     // Basic validation
     if (firstName.trim() === '') {
@@ -487,6 +513,7 @@ ${quoteData.disclaimer}
         
         // Handle long description with text wrapping
         const splitDescription = doc.splitTextToSize(quoteData.plan.description, 170);
+        //@ts-ignore
         doc.text(splitDescription, 20, 104);
         
         // Calculate new Y position after the description
@@ -539,6 +566,7 @@ ${quoteData.disclaimer}
         
         // Disclaimer with line wrapping
         const splitDisclaimer = doc.splitTextToSize(quoteData.disclaimer, 170);
+        //@ts-ignore
         doc.text(splitDisclaimer, 20, yPos + 101);
       } else {
         // Simplified PDF if the data structure is not complete
@@ -594,7 +622,7 @@ ${quoteData.disclaimer}
   };
 
   // Helper function to add a log entry
-  const addLog = (message, data = null) => {
+  const addLog = (message: string, data: any = null): void => {
     const timestamp = new Date().toISOString();
     const logEntry = {
       timestamp,
@@ -606,7 +634,7 @@ ${quoteData.disclaimer}
   };
 
   // Submit data to webhook
-  const submitData = async () => {
+  const submitData = async (): Promise<void> => {
     // Prevent double submission
     if (isSubmitting) return;
     
@@ -719,40 +747,6 @@ ${quoteData.disclaimer}
     premiumSLA, cms, appType, dataIngestion, businessType
   ]);
   
-  // State for fee breakdown
-  const [feeBreakdown, setFeeBreakdown] = React.useState({
-    total: 0,
-    connection: 0,
-    baseLicense: 0,
-    transaction: 0,
-    marketing: 0,
-    giftCard: 0,
-    sms: 0,
-    server: 0,
-    sla: 0,
-    cms: 0,
-    app: 0,
-    support: 0,
-    corporate: 0,
-    franchisee: 0,
-    franchiseePerStore: 0,
-    setup: {
-      total: 0,
-      onboarding: 0,
-      appSetup: 0,
-      dataIngestion: 0
-    }
-  });
-  
-  // Calculate default SMS message count when stores or transactions change
-  React.useEffect(() => {
-    // Calculate default SMS count as 10% of total transactions
-    const defaultSmsCount = Math.round(stores * transactions * 0.1);
-    if (smsEnabled) {
-      setSmsMessages(defaultSmsCount.toString());
-    }
-  }, [stores, transactions, smsEnabled]);
-  
   // Calculate default SMS message count when stores or transactions change
   React.useEffect(() => {
     // Calculate default SMS count as 10% of total transactions
@@ -770,7 +764,7 @@ ${quoteData.disclaimer}
   }, [stores]);
   
   // Calculate connection fees and corporate/franchise split
-  const calculateConnectionFees = (storeCount) => {
+  const calculateConnectionFees = (storeCount: number): number => {
     let connectionFees = 0;
     if (storeCount <= 10) {
       connectionFees = storeCount * 150;
@@ -942,7 +936,7 @@ ${quoteData.disclaimer}
   }
   
   // Format currency
-  function formatCurrency(amount) {
+  function formatCurrency(amount: number): string {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
@@ -1628,7 +1622,7 @@ ${quoteData.disclaimer}
                           value={smsMessages}
                           onChange={(e) => {
                             // Convert to number but allow empty string to clear the field
-                            const val = e.target.value === '' ? '' : parseInt(e.target.value);
+                            const val = e.target.value;
                             setSmsMessages(val);
                           }}
                         />
@@ -1863,14 +1857,14 @@ ${quoteData.disclaimer}
                         </div>
                       </div>
                       
-                      {(giftCard || smsMessages > 0 || independentServer || premiumSLA || 
+                      {(giftCard || (smsMessages && parseInt(smsMessages) > 0) || independentServer || premiumSLA || 
                       premiumSupport || cms || appType !== 'none' || dataIngestion) && (
                         <div className="border-t pt-4 mt-4">
                           <h4 className="font-medium mb-3">Add-on Services</h4>
                           <div className="grid grid-cols-2 gap-4 text-sm">
                             <div className="space-y-2 text-gray-500">
                               {giftCard && <p>Gift Card Module</p>}
-                              {smsMessages > 0 && <p>SMS Messages ({smsMessages})</p>}
+                              {smsMessages && parseInt(smsMessages) > 0 && <p>SMS Messages ({smsMessages})</p>}
                               {independentServer && <p>Independent Server</p>}
                               {premiumSLA && <p>Premium SLA</p>}
                               {cms && <p>Content Management System</p>}
@@ -1882,7 +1876,7 @@ ${quoteData.disclaimer}
                             </div>
                             <div className="space-y-2 text-right font-medium">
                               {giftCard && <p>{formatCurrency(feeBreakdown.giftCard)}</p>}
-                              {smsMessages > 0 && <p>{formatCurrency(feeBreakdown.sms)}</p>}
+                              {smsMessages && parseInt(smsMessages) > 0 && <p>{formatCurrency(feeBreakdown.sms)}</p>}
                               {independentServer && <p>{formatCurrency(feeBreakdown.server)}</p>}
                               {premiumSLA && <p>{formatCurrency(feeBreakdown.sla)}</p>}
                               {cms && <p>{formatCurrency(feeBreakdown.cms)}</p>}
