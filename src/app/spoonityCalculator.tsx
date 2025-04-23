@@ -129,6 +129,23 @@ export default function SpoonityCalculator() {
     }
   };
 
+  // Country dial codes mapping
+  const countryDialCodes: Record<string, string> = {
+    'USA': '+1',
+    'Mexico': '+52',
+    'Argentina': '+54',
+    'UAE': '+971',
+    'Ecuador': '+593',
+    'Australia': '+61',
+    'Colombia': '+57',
+    'Guatemala': '+502',
+    'Costa Rica': '+506',
+    'Honduras': '+504',
+    'Nicaragua': '+505',
+    'El Salvador': '+503',
+    'Chile': '+56'
+  };
+
   // Add custom font and jsPDF script
   React.useEffect(() => {
     // Add Google Fonts link
@@ -933,6 +950,16 @@ ${quoteData.disclaimer}
     }).format(amount);
   }
 
+  // Update phone number when country changes
+  React.useEffect(() => {
+    if (country !== 'Other') {
+      const dialCode = countryDialCodes[country];
+      if (!phone.startsWith(dialCode)) {
+        setPhone(dialCode);
+      }
+    }
+  }, [country]);
+
   // Render email form if not logged in
   if (!isLoggedIn) {
     return (
@@ -1047,10 +1074,19 @@ ${quoteData.disclaimer}
                 type="tel"
                 className="w-full border rounded-md p-2.5 input-field"
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  // Only allow numbers and '+' symbol
+                  if (/^[+\d]*$/.test(value)) {
+                    setPhone(value);
+                  }
+                }}
                 required
-                placeholder="555-123-4567"
+                placeholder={country !== 'Other' ? `${countryDialCodes[country]} followed by your number` : 'Enter phone number'}
               />
+              <p className="text-xs text-gray-500 mt-1">
+                {country !== 'Other' ? `Country code ${countryDialCodes[country]} will be automatically added` : 'Please include country code'}
+              </p>
             </div>
             
             <div>
