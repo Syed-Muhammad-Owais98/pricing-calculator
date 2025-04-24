@@ -957,6 +957,13 @@ ${quoteData.disclaimer}
       if (!phone.startsWith(dialCode)) {
         setPhone(dialCode);
       }
+    } else {
+      // If switching to "Other", remove any existing country code and keep only the + sign
+      if (phone.startsWith('+')) {
+        setPhone('+');
+      } else if (!phone.startsWith('+')) {
+        setPhone('+');
+      }
     }
   }, [country]);
 
