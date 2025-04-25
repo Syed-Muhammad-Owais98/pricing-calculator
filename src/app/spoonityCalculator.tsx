@@ -1374,11 +1374,18 @@ ${quoteData.disclaimer}
                   <div className="space-y-3">
                     <div className="flex items-center">
                       <input 
-                        type="number" 
-                        min="1"
+                        type="text" 
+                        inputMode="numeric"
+                        pattern="[0-9]*"
                         className="w-full border rounded-md p-2.5 input-field text-lg font-medium"
-                        value={stores}
-                        onChange={(e) => setStores(parseInt(e.target.value) || 0)}
+                        value={stores === 0 ? '' : stores}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          // Only allow numbers and convert to number
+                          if (/^\d*$/.test(value)) {
+                            setStores(value === '' ? 0 : parseInt(value));
+                          }
+                        }}
                       />
                     </div>
                     
