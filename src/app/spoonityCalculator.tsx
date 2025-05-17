@@ -58,6 +58,90 @@ export default function SpoonityCalculator() {
   const [appType, setAppType] = React.useState('none');
   const [dataIngestion, setDataIngestion] = React.useState(false);
   
+  // WhatsApp specific state
+  const [whatsappEnabled, setWhatsappEnabled] = React.useState(false);
+  const [whatsappCountry, setWhatsappCountry] = React.useState('Mexico');
+  const [whatsappMarketTicket, setWhatsappMarketTicket] = React.useState(0);
+  const [whatsappUtility, setWhatsappUtility] = React.useState(0);
+  const [whatsappMarketing, setWhatsappMarketing] = React.useState(0);
+  const [whatsappOtp, setWhatsappOtp] = React.useState(0);
+
+  // WhatsApp rates by country and message type
+  type WhatsAppRates = {
+    [key: string]: {
+      marketTicket: number;
+      utility: number;
+      marketing: number;
+      otp: number;
+    }
+  };
+
+  const whatsappRates: WhatsAppRates = {
+    'Argentina': {
+      marketTicket: 0.0469,  // Digital Receipts
+      utility: 0.06,
+      marketing: 0.09,
+      otp: 0.04
+    },
+    'Brazil': {
+      marketTicket: 0.0138,  // Digital Receipts
+      utility: 0.02,
+      marketing: 0.09,
+      otp: 0.04
+    },
+    'Chile': {
+      marketTicket: 0.0276,  // Digital Receipts
+      utility: 0.04,
+      marketing: 0.12,
+      otp: 0.05
+    },
+    'Colombia': {
+      marketTicket: 0.0120,  // Digital Receipts
+      utility: 0.03,
+      marketing: 0.04,
+      otp: 0.01
+    },
+    'Mexico': {
+      marketTicket: 0.0138,  // Digital Receipts
+      utility: 0.03,
+      marketing: 0.07,
+      otp: 0.03
+    },
+    'Peru': {
+      marketTicket: 0.0240,  // Digital Receipts
+      utility: 0.04,
+      marketing: 0.08,
+      otp: 0.04
+    },
+    'North America': {
+      marketTicket: 0.0138,  // Digital Receipts
+      utility: 0.03,
+      marketing: 0.05,
+      otp: 0.02
+    },
+    'Rest of Latin America': {
+      marketTicket: 0.0156,  // Digital Receipts
+      utility: 0.03,
+      marketing: 0.11,
+      otp: 0.05
+    }
+  };
+
+  // Calculate WhatsApp per-store fees based on tiered pricing
+  const calculateWhatsappStoreFeeTiers = (storeCount: number): number => {
+    let fee = 0;
+    if (storeCount <= 10) {
+      fee = storeCount * 9.00;
+    } else if (storeCount <= 80) {
+      fee = 10 * 9.00 + (storeCount - 10) * 8.10;
+    } else if (storeCount <= 149) {
+      fee = 10 * 9.00 + 70 * 8.10 + (storeCount - 80) * 7.20;
+    } else {
+      fee = 10 * 9.00 + 70 * 8.10 + 69 * 7.20 + (storeCount - 149) * 6.30;
+    }
+    return fee;
+  };
+  
   // State for calculated values
   const [monthlyFees, setMonthlyFees] = React.useState(0);
   const [setupFees, setSetupFees] = React.useState(0);
@@ -74,6 +158,12 @@ export default function SpoonityCalculator() {
     marketing: 0,
     giftCard: 0,
     sms: 0,
+    whatsapp: {
+      base: 0,
+      perStore: 0,
+      messages: 0,
+      total: 0
+    },
     server: 0,
     sla: 0,
     cms: 0,
@@ -380,95 +470,55 @@ export default function SpoonityCalculator() {
   };
 
   // Function to get quote information structured for display or PDF
-  const getQuoteDetails = (format = 'text') => {
-    // Format for selected add-ons
-    const selectedAddOns = [];
-    if (giftCard) selectedAddOns.push('Gift Card Module ($500 + $30/store/month)');
-    if (plan !== 'loyalty' && pushNotifications) selectedAddOns.push('Push Notifications ($0.0045/push)');
-    if (smsEnabled && smsMessages && parseInt(smsMessages) > 0) selectedAddOns.push(`SMS for OTP (${smsCountry}): ${smsMessages} messages`);
-    if (independentServer) selectedAddOns.push('Independent Server ($500/month)');
-    if (premiumSLA) selectedAddOns.push('Premium SLA ($2,000/month)');
-    if (premiumSupport) selectedAddOns.push('Premium Support ($2,000 + 10% of monthly fees)');
-    if (cms) selectedAddOns.push('Content Management System ($530/month)');
-    if (appType === 'premium') selectedAddOns.push('Premium App ($15,000 setup + $1,080/month)');
-    if (appType === 'standard') selectedAddOns.push('Standard App ($5,000 setup + $350/month)');
-    if (appType === 'pwa') selectedAddOns.push('Customizable PWA ($1,000 setup + $350/month)');
-    if (dataIngestion) selectedAddOns.push('Data Ingestion (20% of monthly fees)');
+  const getQuoteDetails = () => {
+    const addOns = [];
     
-    // Structured data for the quote
-    const quoteData = {
-      title: 'SPOONITY PRICING QUOTE',
-      contact: {
-        name: `${firstName} ${lastName}`,
-        email: email,
-        phone: phone,
-        company: company,
-        role: role,
-        country: country === 'Other' ? otherCountry : country,
-        businessType: businessType === 'corporate' ? 'Corporately Owned' : 'Franchised'
-      },
-      plan: {
-        name: planDetails[plan].name,
-        description: planDetails[plan].fullDescription
-      },
-      configuration: {
-        stores: stores,
-        transactions: transactions,
-        marketing: plan !== 'loyalty' ? marketing : null
-      },
-      addOns: selectedAddOns,
-      pricing: {
-        monthlyFees: formatCurrency(monthlyFees),
-        perStore: formatCurrency(perStore),
-        setupFees: formatCurrency(setupFees),
-        firstYearTotal: formatCurrency(monthlyFees * 12 + setupFees)
-      },
-      date: new Date().toLocaleDateString(),
-      disclaimer: 'This is an estimated quote based on the information provided. A Spoonity representative will contact you to provide a final quote and answer any questions.'
-    };
-    
-    if (format === 'data') {
-      return quoteData;
+    if (smsEnabled) {
+      addOns.push(`SMS Platform (${smsCountry}): ${formatCurrency(feeBreakdown.sms)}/month`);
     }
     
-    // Format for text display
-    return `
-SPOONITY PRICING QUOTE
-
-Contact Information:
-Name: ${quoteData.contact.name}
-Email: ${quoteData.contact.email}
-Phone: ${quoteData.contact.phone}
-Company: ${quoteData.contact.company}
-Role: ${quoteData.contact.role}
-
-Plan Details:
-${quoteData.plan.name}
-${quoteData.plan.description}
-
-Configuration:
-Number of Stores: ${quoteData.configuration.stores}
-Transactions per Store: ${quoteData.configuration.transactions}
-${quoteData.configuration.marketing ? `Marketing Messages: ${quoteData.configuration.marketing}` : ''}
-
-Selected Add-ons:
-${quoteData.addOns.length > 0 ? quoteData.addOns.map(addon => `- ${addon}`).join('\n') : '- None selected'}
-
-Pricing Summary:
-Monthly Recurring Fees: ${quoteData.pricing.monthlyFees}
-Monthly Fee per Store: ${quoteData.pricing.perStore}
-One-Time Setup Fees: ${quoteData.pricing.setupFees}
-First Year Total Cost: ${quoteData.pricing.firstYearTotal}
-
-Quote generated on: ${quoteData.date}
-
-${quoteData.disclaimer}
-    `;
+    if (whatsappEnabled) {
+      addOns.push(`WhatsApp Platform (${whatsappCountry}): ${formatCurrency(feeBreakdown.whatsapp.total)}/month`);
+    }
+    
+    if (appType !== 'none') {
+      addOns.push(`Mobile App (${appType}): ${formatCurrency(feeBreakdown.app)}/month`);
+    }
+    
+    if (independentServer) {
+      addOns.push(`Independent Server: ${formatCurrency(feeBreakdown.server)}/month`);
+    }
+    
+    if (premiumSLA) {
+      addOns.push(`Premium SLA: ${formatCurrency(feeBreakdown.sla)}/month`);
+    }
+    
+    if (plan === 'loyalty') {
+      addOns.push(`Loyalty Program: ${formatCurrency(feeBreakdown.baseLicense)}/month`);
+    }
+    
+    if (giftCard) {
+      addOns.push(`Gift Card Program: ${formatCurrency(feeBreakdown.giftCard)}/month`);
+    }
+    
+    if (marketing) {
+      addOns.push(`Marketing Platform: ${formatCurrency(feeBreakdown.marketing)}/month`);
+    }
+    
+    if (cms) {
+      addOns.push(`Content Management System: ${formatCurrency(feeBreakdown.cms)}/month`);
+    }
+    
+    if (premiumSupport) {
+      addOns.push(`Premium Support: ${formatCurrency(feeBreakdown.support)}/month`);
+    }
+    
+    return addOns;
   };
   
   // Function to display quote information as text
   const displayQuoteDetails = () => {
-    return getQuoteDetails('text');
+    return getQuoteDetails();
   };
   
   // Function to generate and download PDF
@@ -493,7 +543,7 @@ ${quoteData.disclaimer}
       const doc = new jsPDF();
       
       // Get structured quote data
-      const quoteData = getQuoteDetails('data');
+      const quoteData = getQuoteDetails();
       console.log('Quote data prepared:', quoteData);
       
       // Set font size and styling
@@ -515,21 +565,21 @@ ${quoteData.disclaimer}
       
       // If quoteData is an object, proceed with detailed PDF
       if (typeof quoteData === 'object') {
-        doc.text(`Name: ${quoteData.contact.name}`, 20, 42);
-        doc.text(`Email: ${quoteData.contact.email}`, 20, 49);
-        doc.text(`Phone: ${quoteData.contact.phone}`, 20, 56);
-        doc.text(`Company: ${quoteData.contact.company}`, 20, 63);
-        doc.text(`Role: ${quoteData.contact.role}`, 20, 70);
+        doc.text(`Name: ${firstName} ${lastName}`, 20, 42);
+        doc.text(`Email: ${email}`, 20, 49);
+        doc.text(`Phone: ${phone}`, 20, 56);
+        doc.text(`Company: ${company}`, 20, 63);
+        doc.text(`Role: ${role}`, 20, 70);
         doc.text(`Business Type: ${businessType === 'corporate' ? 'Corporately Owned' : 'Franchised'}`, 20, 77);
         
         // Plan Details
         doc.setFont('helvetica', 'bold');
         doc.text('Plan Details:', 20, 90);
         doc.setFont('helvetica', 'normal');
-        doc.text(quoteData.plan.name, 20, 97);
+        doc.text(planDetails[plan].name, 20, 97);
         
         // Handle long description with text wrapping
-        const splitDescription = doc.splitTextToSize(quoteData.plan.description, 170);
+        const splitDescription = doc.splitTextToSize(planDetails[plan].fullDescription, 170);
         //@ts-ignore
         doc.text(splitDescription, 20, 104);
         
@@ -540,10 +590,10 @@ ${quoteData.disclaimer}
         doc.setFont('helvetica', 'bold');
         doc.text('Configuration:', 20, yPos + 10);
         doc.setFont('helvetica', 'normal');
-        doc.text(`Number of Stores: ${quoteData.configuration.stores}`, 20, yPos + 17);
-        doc.text(`Transactions per Store: ${quoteData.configuration.transactions}`, 20, yPos + 24);
-        if (quoteData.configuration.marketing) {
-          doc.text(`Marketing Messages: ${quoteData.configuration.marketing}`, 20, yPos + 31);
+        doc.text(`Number of Stores: ${stores}`, 20, yPos + 17);
+        doc.text(`Transactions per Store: ${transactions}`, 20, yPos + 24);
+        if (marketing) {
+          doc.text(`Marketing Messages: ${marketing}`, 20, yPos + 31);
           yPos += 7; // Add space for the marketing line
         }
         
@@ -551,21 +601,21 @@ ${quoteData.disclaimer}
         doc.setFont('helvetica', 'bold');
         doc.text('Selected Add-ons:', 20, yPos + 38);
         doc.setFont('helvetica', 'normal');
-        if (quoteData.addOns.length === 0) {
+        if (quoteData.length === 0) {
           doc.text('- None selected', 20, yPos + 45);
           yPos += 7;
         } else {
-          quoteData.addOns.forEach((addon, index) => {
+          quoteData.forEach((addon, index) => {
             doc.text(`- ${addon}`, 20, yPos + 45 + (index * 7));
           });
-          yPos += (quoteData.addOns.length * 7);
+          yPos += (quoteData.length * 7);
         }
         
         // Pricing Summary
         doc.setFont('helvetica', 'bold');
         doc.text('Pricing Summary:', 20, yPos + 52);
         doc.setFont('helvetica', 'normal');
-        doc.text(`Monthly Recurring Fees: ${quoteData.pricing.monthlyFees}`, 20, yPos + 59);
+        doc.text(`Monthly Recurring Fees: ${formatCurrency(monthlyFees)}`, 20, yPos + 59);
         
         // Add franchise breakdown if applicable
         if (businessType === 'franchise') {
@@ -574,15 +624,15 @@ ${quoteData.disclaimer}
           yPos += 14;
         }
         
-        doc.text(`Monthly Fee per Store: ${quoteData.pricing.perStore}`, 20, yPos + 66);
-        doc.text(`One-Time Setup Fees: ${quoteData.pricing.setupFees}`, 20, yPos + 73);
-        doc.text(`First Year Total Cost: ${quoteData.pricing.firstYearTotal}`, 20, yPos + 80);
+        doc.text(`Monthly Fee per Store: ${formatCurrency(perStore)}`, 20, yPos + 66);
+        doc.text(`One-Time Setup Fees: ${formatCurrency(setupFees)}`, 20, yPos + 73);
+        doc.text(`First Year Total Cost: ${formatCurrency(monthlyFees * 12 + setupFees)}`, 20, yPos + 80);
         
         // Date and Disclaimer
-        doc.text(`Quote generated on: ${quoteData.date}`, 20, yPos + 94);
+        doc.text(`Quote generated on: ${new Date().toLocaleDateString()}`, 20, yPos + 94);
         
         // Disclaimer with line wrapping
-        const splitDisclaimer = doc.splitTextToSize(quoteData.disclaimer, 170);
+        const splitDisclaimer = doc.splitTextToSize('This is an estimated quote based on the information provided. A Spoonity representative will contact you to provide a final quote and answer any questions.', 170);
         //@ts-ignore
         doc.text(splitDisclaimer, 20, yPos + 101);
       } else {
@@ -836,6 +886,32 @@ ${quoteData.disclaimer}
       monthly += smsFees;
     }
     
+    // WhatsApp fees
+    let whatsappBaseFee = 0;
+    let whatsappPerStoreFee = 0;
+    let whatsappMessageFees = 0;
+    let whatsappTotalFee = 0;
+    
+    if (whatsappEnabled) {
+      // Base platform fee
+      whatsappBaseFee = 630;
+      
+      // Per-store fee based on tiers
+      whatsappPerStoreFee = calculateWhatsappStoreFeeTiers(stores);
+      
+      // Message fees based on country and message types
+      const countryRates = whatsappRates[whatsappCountry];
+      const marketTicketFee = whatsappMarketTicket * countryRates.marketTicket;
+      const utilityFee = whatsappUtility * countryRates.utility;
+      const marketingFee = whatsappMarketing * countryRates.marketing;
+      const otpFee = whatsappOtp * countryRates.otp;
+      
+      whatsappMessageFees = marketTicketFee + utilityFee + marketingFee + otpFee;
+      whatsappTotalFee = whatsappBaseFee + whatsappPerStoreFee + whatsappMessageFees;
+      
+      monthly += whatsappTotalFee;
+    }
+    
     let serverFees = 0;
     if (independentServer) {
       serverFees = 500;
@@ -923,6 +999,12 @@ ${quoteData.disclaimer}
       marketing: marketingFees,
       giftCard: giftCardFees,
       sms: smsFees,
+      whatsapp: {
+        base: whatsappBaseFee,
+        perStore: whatsappPerStoreFee,
+        messages: whatsappMessageFees,
+        total: whatsappTotalFee
+      },
       server: serverFees,
       sla: slaFees,
       cms: cmsFees,
@@ -1668,6 +1750,131 @@ ${quoteData.disclaimer}
                       </div>
                       <div className="md:col-span-2 text-xs text-gray-500">
                         Default calculation: 10% of total monthly transactions ({Math.round(stores * transactions * 0.1).toLocaleString()} messages)
+                      </div>
+                    </div>
+                  )}
+                </div>
+                
+                {/* WhatsApp Platform Integration */}
+                <div className="border-t border-b py-5">
+                  <div className="flex items-start mb-3">
+                    <input 
+                      type="checkbox" 
+                      id="whatsappEnabled" 
+                      className="checkbox-custom mt-1"
+                      checked={whatsappEnabled}
+                      onChange={(e) => {
+                        setWhatsappEnabled(e.target.checked);
+                        if (e.target.checked) {
+                          // Set default values when enabling WhatsApp
+                          const defaultSmsCount = Math.round(stores * transactions * 0.1);
+                          setWhatsappMarketTicket(defaultSmsCount);
+                          setWhatsappUtility(defaultSmsCount);
+                          setWhatsappOtp(defaultSmsCount);
+                          setWhatsappMarketing(10000);
+                        }
+                      }}
+                    />
+                    <div>
+                      <label className="block text-sm font-medium mb-1" htmlFor="whatsappEnabled">
+                        WhatsApp Platform for Loyalty and Digital Receipts
+                      </label>
+                      <p className="text-xs text-gray-500">Base fee: $630/month + tiered per-location fees</p>
+                    </div>
+                  </div>
+                  
+                  {whatsappEnabled && (
+                    <div className="ml-7 space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium mb-1">Location Pricing Tiers</label>
+                        <div className="text-xs text-gray-600 grid grid-cols-2 gap-2">
+                          <div>Tier 1-10: $9.00/month/store</div>
+                          <div>Tier 11-80: $8.10/month/store</div>
+                          <div>Tier 81-149: $7.20/month/store</div>
+                          <div>Tier 150+: $6.30/month/store</div>
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Country for Message Pricing</label>
+                        <select 
+                          className="border rounded-md p-2.5 input-field w-full"
+                          value={whatsappCountry}
+                          onChange={(e) => setWhatsappCountry(e.target.value)}
+                        >
+                          {Object.keys(whatsappRates).map(country => (
+                            <option key={country} value={country}>
+                              {country}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Estimated Monthly Message Volume</label>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-xs text-gray-600 mb-1">Digital Receipts (${whatsappRates[whatsappCountry].marketTicket.toFixed(4)}/msg)</label>
+                            <input
+                              type="number"
+                              min="0"
+                              className="w-full border rounded-md p-2 input-field"
+                              value={whatsappMarketTicket}
+                              onChange={(e) => setWhatsappMarketTicket(parseInt(e.target.value) || 0)}
+                              placeholder="# of messages"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-gray-600 mb-1">Utility Campaign Messages (${whatsappRates[whatsappCountry].utility.toFixed(2)}/msg)</label>
+                            <input
+                              type="number"
+                              min="0"
+                              className="w-full border rounded-md p-2 input-field"
+                              value={whatsappUtility}
+                              onChange={(e) => setWhatsappUtility(parseInt(e.target.value) || 0)}
+                              placeholder="# of messages"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-gray-600 mb-1">Marketing Campaign Messages (${whatsappRates[whatsappCountry].marketing.toFixed(2)}/msg)</label>
+                            <input
+                              type="number"
+                              min="0"
+                              className="w-full border rounded-md p-2 input-field"
+                              value={whatsappMarketing}
+                              onChange={(e) => setWhatsappMarketing(parseInt(e.target.value) || 0)}
+                              placeholder="# of messages"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-gray-600 mb-1">Authentication OTP Messages (${whatsappRates[whatsappCountry].otp.toFixed(2)}/msg)</label>
+                            <input
+                              type="number"
+                              min="0"
+                              className="w-full border rounded-md p-2 input-field"
+                              value={whatsappOtp}
+                              onChange={(e) => setWhatsappOtp(parseInt(e.target.value) || 0)}
+                              placeholder="# of messages"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="pt-2 text-xs bg-gray-50 p-3 rounded-md">
+                        <div className="font-medium mb-1">WhatsApp Fee Summary:</div>
+                        <div className="grid grid-cols-2 gap-1">
+                          <span>Base Platform Fee:</span>
+                          <span className="text-right">{formatCurrency(whatsappEnabled ? 630 : 0)}</span>
+                          
+                          <span>Per-Location Fees ({stores} stores):</span>
+                          <span className="text-right">{formatCurrency(whatsappEnabled ? calculateWhatsappStoreFeeTiers(stores) : 0)}</span>
+                          
+                          <span>Message Fees:</span>
+                          <span className="text-right">{formatCurrency(feeBreakdown.whatsapp.messages)}</span>
+                          
+                          <span className="font-medium pt-1 border-t mt-1">Total WhatsApp Monthly:</span>
+                          <span className="text-right font-medium pt-1 border-t mt-1">{formatCurrency(feeBreakdown.whatsapp.total)}</span>
+                        </div>
                       </div>
                     </div>
                   )}
