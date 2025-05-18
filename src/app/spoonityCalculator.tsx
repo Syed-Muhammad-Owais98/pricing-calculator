@@ -76,6 +76,18 @@ export default function SpoonityCalculator() {
     }
   };
 
+  // List of countries where WhatsApp is available
+  const whatsappAvailableCountries = [
+    'Argentina',
+    'Brazil',
+    'Chile',
+    'Colombia',
+    'Mexico',
+    'Peru',
+    'North America',
+    'Rest of Latin America'
+  ];
+
   const whatsappRates: WhatsAppRates = {
     'Argentina': {
       marketTicket: 0.0469,  // Digital Receipts
@@ -465,8 +477,15 @@ export default function SpoonityCalculator() {
       setSmsCountry(country);
     }
     
-    // If validation passes, set logged in to true
+    // If validation passes, set logged in to true and scroll to top
     setIsLoggedIn(true);
+    // Use setTimeout to ensure the new content is rendered before scrolling
+    setTimeout(() => {
+      window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      });
+    }, 100);
   };
 
   // Function to get quote information structured for display or PDF
@@ -1039,6 +1058,10 @@ export default function SpoonityCalculator() {
       if (!phone.startsWith(dialCode)) {
         setPhone(dialCode);
       }
+      // Disable WhatsApp if country is not supported
+      if (!whatsappAvailableCountries.includes(country)) {
+        setWhatsappEnabled(false);
+      }
     } else {
       // If switching to "Other", remove any existing country code and keep only the + sign
       if (phone.startsWith('+')) {
@@ -1046,8 +1069,24 @@ export default function SpoonityCalculator() {
       } else if (!phone.startsWith('+')) {
         setPhone('+');
       }
+      // Disable WhatsApp for "Other" countries
+      setWhatsappEnabled(false);
     }
   }, [country]);
+
+  // Add scroll function
+  const scrollToTop = () => {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+  };
+
+  // Update tab switching logic
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    scrollToTop();
+  };
 
   // Render email form if not logged in
   if (!isLoggedIn) {
@@ -1377,7 +1416,7 @@ export default function SpoonityCalculator() {
             <div className="flex">
               <button 
                 className={`px-4 py-3 tab-button ${activeTab === 'inputs' ? 'active spoonity-primary-text font-medium' : 'text-gray-600 hover:spoonity-primary-text'}`}
-                onClick={() => setActiveTab('inputs')}
+                onClick={() => handleTabChange('inputs')}
               >
                 <div className="flex items-center">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1388,7 +1427,7 @@ export default function SpoonityCalculator() {
               </button>
               <button 
                 className={`px-4 py-3 tab-button ${activeTab === 'addons' ? 'active spoonity-primary-text font-medium' : 'text-gray-600 hover:spoonity-primary-text'}`}
-                onClick={() => setActiveTab('addons')}
+                onClick={() => handleTabChange('addons')}
               >
                 <div className="flex items-center">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1399,7 +1438,7 @@ export default function SpoonityCalculator() {
               </button>
               <button 
                 className={`px-4 py-3 tab-button ${activeTab === 'summary' ? 'active spoonity-primary-text font-medium' : 'text-gray-600 hover:spoonity-primary-text'}`}
-                onClick={() => setActiveTab('summary')}
+                onClick={() => handleTabChange('summary')}
               >
                 <div className="flex items-center">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1568,7 +1607,7 @@ export default function SpoonityCalculator() {
                 <div className="flex justify-end mt-2">
                   <button 
                     className="spoonity-cta text-white font-medium py-2.5 px-4 rounded transition-colors duration-200 flex items-center"
-                    onClick={() => setActiveTab('addons')}
+                    onClick={() => handleTabChange('addons')}
                   >
                     Continue to Add-ons
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1756,129 +1795,131 @@ export default function SpoonityCalculator() {
                 </div>
                 
                 {/* WhatsApp Platform Integration */}
-                <div className="border-t border-b py-5">
-                  <div className="flex items-start mb-3">
-                    <input 
-                      type="checkbox" 
-                      id="whatsappEnabled" 
-                      className="checkbox-custom mt-1"
-                      checked={whatsappEnabled}
-                      onChange={(e) => {
-                        setWhatsappEnabled(e.target.checked);
-                        if (e.target.checked) {
-                          // Set default values when enabling WhatsApp
-                          const defaultSmsCount = Math.round(stores * transactions * 0.1);
-                          setWhatsappMarketTicket(defaultSmsCount);
-                          setWhatsappUtility(defaultSmsCount);
-                          setWhatsappOtp(defaultSmsCount);
-                          setWhatsappMarketing(10000);
-                        }
-                      }}
-                    />
-                    <div>
-                      <label className="block text-sm font-medium mb-1" htmlFor="whatsappEnabled">
-                        WhatsApp Platform for Loyalty and Digital Receipts
-                      </label>
-                      <p className="text-xs text-gray-500">Base fee: $630/month + tiered per-location fees</p>
+                {whatsappAvailableCountries.includes(country) && (
+                  <div className="border-b py-5">
+                    <div className="flex items-start mb-3">
+                      <input 
+                        type="checkbox" 
+                        id="whatsappEnabled" 
+                        className="checkbox-custom mt-1"
+                        checked={whatsappEnabled}
+                        onChange={(e) => {
+                          setWhatsappEnabled(e.target.checked);
+                          if (e.target.checked) {
+                            // Set default values when enabling WhatsApp
+                            const defaultSmsCount = Math.round(stores * transactions * 0.1);
+                            setWhatsappMarketTicket(defaultSmsCount);
+                            setWhatsappUtility(defaultSmsCount);
+                            setWhatsappOtp(defaultSmsCount);
+                            setWhatsappMarketing(10000);
+                          }
+                        }}
+                      />
+                      <div>
+                        <label className="block text-sm font-medium mb-1" htmlFor="whatsappEnabled">
+                          WhatsApp Platform for Loyalty and Digital Receipts
+                        </label>
+                        <p className="text-xs text-gray-500">Base fee: $630/month + tiered per-location fees</p>
+                      </div>
                     </div>
+                    
+                    {whatsappEnabled && (
+                      <div className="ml-7 space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium mb-1">Location Pricing Tiers</label>
+                          <div className="text-xs text-gray-600 grid grid-cols-2 gap-2">
+                            <div>Tier 1-10: $9.00/month/store</div>
+                            <div>Tier 11-80: $8.10/month/store</div>
+                            <div>Tier 81-149: $7.20/month/store</div>
+                            <div>Tier 150+: $6.30/month/store</div>
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-medium mb-2">Country for Message Pricing</label>
+                          <select 
+                            className="border rounded-md p-2.5 input-field w-full"
+                            value={whatsappCountry}
+                            onChange={(e) => setWhatsappCountry(e.target.value)}
+                          >
+                            {Object.keys(whatsappRates).map(country => (
+                              <option key={country} value={country}>
+                                {country}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-medium mb-2">Estimated Monthly Message Volume</label>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-xs text-gray-600 mb-1">Digital Receipts (${whatsappRates[whatsappCountry].marketTicket.toFixed(4)}/msg)</label>
+                              <input
+                                type="number"
+                                min="0"
+                                className="w-full border rounded-md p-2 input-field"
+                                value={whatsappMarketTicket}
+                                onChange={(e) => setWhatsappMarketTicket(parseInt(e.target.value) || 0)}
+                                placeholder="# of messages"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs text-gray-600 mb-1">Utility Campaign Messages (${whatsappRates[whatsappCountry].utility.toFixed(2)}/msg)</label>
+                              <input
+                                type="number"
+                                min="0"
+                                className="w-full border rounded-md p-2 input-field"
+                                value={whatsappUtility}
+                                onChange={(e) => setWhatsappUtility(parseInt(e.target.value) || 0)}
+                                placeholder="# of messages"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs text-gray-600 mb-1">Marketing Campaign Messages (${whatsappRates[whatsappCountry].marketing.toFixed(2)}/msg)</label>
+                              <input
+                                type="number"
+                                min="0"
+                                className="w-full border rounded-md p-2 input-field"
+                                value={whatsappMarketing}
+                                onChange={(e) => setWhatsappMarketing(parseInt(e.target.value) || 0)}
+                                placeholder="# of messages"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs text-gray-600 mb-1">Authentication OTP Messages (${whatsappRates[whatsappCountry].otp.toFixed(2)}/msg)</label>
+                              <input
+                                type="number"
+                                min="0"
+                                className="w-full border rounded-md p-2 input-field"
+                                value={whatsappOtp}
+                                onChange={(e) => setWhatsappOtp(parseInt(e.target.value) || 0)}
+                                placeholder="# of messages"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="pt-2 text-xs bg-gray-50 p-3 rounded-md">
+                          <div className="font-medium mb-1">WhatsApp Fee Summary:</div>
+                          <div className="grid grid-cols-2 gap-1">
+                            <span>Base Platform Fee:</span>
+                            <span className="text-right">{formatCurrency(whatsappEnabled ? 630 : 0)}</span>
+                            
+                            <span>Per-Location Fees ({stores} stores):</span>
+                            <span className="text-right">{formatCurrency(whatsappEnabled ? calculateWhatsappStoreFeeTiers(stores) : 0)}</span>
+                            
+                            <span>Message Fees:</span>
+                            <span className="text-right">{formatCurrency(feeBreakdown.whatsapp.messages)}</span>
+                            
+                            <span className="font-medium pt-1 border-t mt-1">Total WhatsApp Monthly:</span>
+                            <span className="text-right font-medium pt-1 border-t mt-1">{formatCurrency(feeBreakdown.whatsapp.total)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  
-                  {whatsappEnabled && (
-                    <div className="ml-7 space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium mb-1">Location Pricing Tiers</label>
-                        <div className="text-xs text-gray-600 grid grid-cols-2 gap-2">
-                          <div>Tier 1-10: $9.00/month/store</div>
-                          <div>Tier 11-80: $8.10/month/store</div>
-                          <div>Tier 81-149: $7.20/month/store</div>
-                          <div>Tier 150+: $6.30/month/store</div>
-                        </div>
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium mb-2">Country for Message Pricing</label>
-                        <select 
-                          className="border rounded-md p-2.5 input-field w-full"
-                          value={whatsappCountry}
-                          onChange={(e) => setWhatsappCountry(e.target.value)}
-                        >
-                          {Object.keys(whatsappRates).map(country => (
-                            <option key={country} value={country}>
-                              {country}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium mb-2">Estimated Monthly Message Volume</label>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          <div>
-                            <label className="block text-xs text-gray-600 mb-1">Digital Receipts (${whatsappRates[whatsappCountry].marketTicket.toFixed(4)}/msg)</label>
-                            <input
-                              type="number"
-                              min="0"
-                              className="w-full border rounded-md p-2 input-field"
-                              value={whatsappMarketTicket}
-                              onChange={(e) => setWhatsappMarketTicket(parseInt(e.target.value) || 0)}
-                              placeholder="# of messages"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs text-gray-600 mb-1">Utility Campaign Messages (${whatsappRates[whatsappCountry].utility.toFixed(2)}/msg)</label>
-                            <input
-                              type="number"
-                              min="0"
-                              className="w-full border rounded-md p-2 input-field"
-                              value={whatsappUtility}
-                              onChange={(e) => setWhatsappUtility(parseInt(e.target.value) || 0)}
-                              placeholder="# of messages"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs text-gray-600 mb-1">Marketing Campaign Messages (${whatsappRates[whatsappCountry].marketing.toFixed(2)}/msg)</label>
-                            <input
-                              type="number"
-                              min="0"
-                              className="w-full border rounded-md p-2 input-field"
-                              value={whatsappMarketing}
-                              onChange={(e) => setWhatsappMarketing(parseInt(e.target.value) || 0)}
-                              placeholder="# of messages"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs text-gray-600 mb-1">Authentication OTP Messages (${whatsappRates[whatsappCountry].otp.toFixed(2)}/msg)</label>
-                            <input
-                              type="number"
-                              min="0"
-                              className="w-full border rounded-md p-2 input-field"
-                              value={whatsappOtp}
-                              onChange={(e) => setWhatsappOtp(parseInt(e.target.value) || 0)}
-                              placeholder="# of messages"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div className="pt-2 text-xs bg-gray-50 p-3 rounded-md">
-                        <div className="font-medium mb-1">WhatsApp Fee Summary:</div>
-                        <div className="grid grid-cols-2 gap-1">
-                          <span>Base Platform Fee:</span>
-                          <span className="text-right">{formatCurrency(whatsappEnabled ? 630 : 0)}</span>
-                          
-                          <span>Per-Location Fees ({stores} stores):</span>
-                          <span className="text-right">{formatCurrency(whatsappEnabled ? calculateWhatsappStoreFeeTiers(stores) : 0)}</span>
-                          
-                          <span>Message Fees:</span>
-                          <span className="text-right">{formatCurrency(feeBreakdown.whatsapp.messages)}</span>
-                          
-                          <span className="font-medium pt-1 border-t mt-1">Total WhatsApp Monthly:</span>
-                          <span className="text-right font-medium pt-1 border-t mt-1">{formatCurrency(feeBreakdown.whatsapp.total)}</span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                )}
                 
                 <div>
                   <label className="block text-sm font-medium mb-3">Mobile App Options</label>
@@ -2028,7 +2069,7 @@ export default function SpoonityCalculator() {
                 <div className="flex justify-between mt-2">
                   <button 
                     className="bg-gray-100 text-gray-700 font-medium py-2.5 px-4 rounded hover:bg-gray-200 transition-colors duration-200 flex items-center"
-                    onClick={() => setActiveTab('inputs')}
+                    onClick={() => handleTabChange('inputs')}
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -2037,7 +2078,7 @@ export default function SpoonityCalculator() {
                   </button>
                   <button 
                     className="spoonity-cta text-white font-medium py-2.5 px-4 rounded transition-colors duration-200 flex items-center"
-                    onClick={() => setActiveTab('summary')}
+                    onClick={() => handleTabChange('summary')}
                   >
                     Continue to Summary
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -2294,7 +2335,7 @@ export default function SpoonityCalculator() {
           <div className="p-4 border-t bg-gray-50 flex justify-between items-center">
             <div className="text-gray-500 text-sm sm:flex items-center hidden">
               <button
-                onClick={() => setActiveTab('summary')} 
+                onClick={() => handleTabChange('summary')} 
                 className="spoonity-primary-text hover:underline font-medium flex items-center"
               >
                 View Full Breakdown
