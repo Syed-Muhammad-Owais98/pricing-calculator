@@ -1104,7 +1104,13 @@ export default function SpoonityCalculator() {
   // Update tab switching logic
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
-    scrollToTop();
+    // Use setTimeout to ensure the new content is rendered before scrolling
+    setTimeout(() => {
+      window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      });
+    }, 100);
   };
 
   // Function to reset all states to default values
