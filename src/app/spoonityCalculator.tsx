@@ -818,7 +818,9 @@ export default function SpoonityCalculator() {
   }, [
     plan, stores, transactions, marketing, giftCard, pushNotifications, 
     smsMessages, smsCountry, independentServer, premiumSupport, 
-    premiumSLA, cms, appType, dataIngestion, businessType
+    premiumSLA, cms, appType, dataIngestion, businessType,
+    // Add WhatsApp message counts and country to dependencies
+    whatsappEnabled, whatsappCountry, whatsappMarketTicket, whatsappUtility, whatsappMarketing, whatsappOtp
   ]);
   
   // Calculate default SMS message count when stores or transactions change
@@ -954,6 +956,12 @@ export default function SpoonityCalculator() {
     if (appType === 'premium') {
       appFees = 1080;
       monthly += appFees;
+      // Automatically enable CMS for Premium app
+      if (!cms) {
+        setCms(true);
+        cmsFees = 530;
+        monthly += cmsFees;
+      }
     } else if (appType === 'standard' || appType === 'pwa') {
       appFees = 350;
       monthly += appFees;
@@ -1961,7 +1969,10 @@ export default function SpoonityCalculator() {
                           ? 'border-blue-500 bg-blue-50 shadow-sm' 
                           : 'border-gray-200 hover:border-blue-300'
                       }`}
-                      onClick={() => setAppType('premium')}
+                      onClick={() => {
+                        setAppType('premium');
+                        setCms(true); // Automatically enable CMS for Premium app
+                      }}
                     >
                       <div className="flex items-center">
                         <div 
