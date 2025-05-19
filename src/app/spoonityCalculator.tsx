@@ -832,6 +832,17 @@ export default function SpoonityCalculator() {
     }
   }, [stores, transactions, smsEnabled]);
   
+  // Calculate default WhatsApp message counts when stores or transactions change
+  React.useEffect(() => {
+    if (whatsappEnabled) {
+      const defaultCount = Math.round(stores * transactions * 0.1);
+      setWhatsappMarketTicket(defaultCount);
+      setWhatsappUtility(defaultCount);
+      setWhatsappOtp(defaultCount);
+      setWhatsappMarketing(10000);
+    }
+  }, [stores, transactions, whatsappEnabled]);
+  
   // Ensure independent server for >50 stores
   React.useEffect(() => {
     if (stores > 50) {
@@ -1094,6 +1105,80 @@ export default function SpoonityCalculator() {
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
     scrollToTop();
+  };
+
+  // Function to reset all states to default values
+  const resetAllStates = () => {
+    setFirstName('');
+    setLastName('');
+    setEmail('');
+    setPhone('');
+    setCompany('');
+    setRole('');
+    setCountry('USA');
+    setOtherCountry('');
+    setBusinessType('corporate');
+    setPlan('loyalty');
+    setStores(10);
+    setTransactions(1000);
+    setMarketing(10000);
+    setGiftCard(false);
+    setPushNotifications(false);
+    setSmsEnabled(true);
+    setSmsMessages('');
+    setSmsCountry('USA');
+    setIndependentServer(false);
+    setPremiumSupport(false);
+    setPremiumSLA(false);
+    setCms(false);
+    setAppType('none');
+    setDataIngestion(false);
+    setWhatsappEnabled(false);
+    setWhatsappCountry('Mexico');
+    setWhatsappMarketTicket(0);
+    setWhatsappUtility(0);
+    setWhatsappMarketing(0);
+    setWhatsappOtp(0);
+    setMonthlyFees(0);
+    setSetupFees(0);
+    setPerStore(0);
+    setActiveTab('inputs');
+    setTotalBeforeSupport(0);
+    setFeeBreakdown({
+      total: 0,
+      connection: 0,
+      baseLicense: 0,
+      transaction: 0,
+      marketing: 0,
+      giftCard: 0,
+      sms: 0,
+      whatsapp: {
+        base: 0,
+        perStore: 0,
+        messages: 0,
+        total: 0
+      },
+      server: 0,
+      sla: 0,
+      cms: 0,
+      app: 0,
+      support: 0,
+      corporate: 0,
+      franchisee: 0,
+      franchiseePerStore: 0,
+      setup: {
+        total: 0,
+        onboarding: 0,
+        appSetup: 0,
+        dataIngestion: 0
+      }
+    });
+    setIsLoggedIn(false);
+    setSubmitSuccess(false);
+    setIsSubmitting(false);
+    setSubmitError('');
+    setWebhookLogs([]);
+    setShowLogs(false);
   };
 
   // Render email form if not logged in
@@ -1386,16 +1471,7 @@ export default function SpoonityCalculator() {
               
               <div className="mt-8 text-center">
                 <button
-                  onClick={() => {
-                    setSubmitSuccess(false);
-                    setIsLoggedIn(false);
-                    setFirstName('');
-                    setLastName('');
-                    setEmail('');
-                    setPhone('');
-                    setCompany('');
-                    setRole('');
-                  }}
+                  onClick={resetAllStates}
                   className="text-gray-500 hover:spoonity-primary-text text-sm underline"
                 >
                   Start Over
@@ -1804,129 +1880,159 @@ export default function SpoonityCalculator() {
                 
                 {/* WhatsApp Platform Integration */}
                 {whatsappAvailableCountries.includes(country) && (
-                  <div className="border-b py-5">
-                    <div className="flex items-start mb-3">
-                      <input 
-                        type="checkbox" 
-                        id="whatsappEnabled" 
-                        className="checkbox-custom mt-1"
-                        checked={whatsappEnabled}
-                        onChange={(e) => {
-                          setWhatsappEnabled(e.target.checked);
-                          if (e.target.checked) {
-                            // Set default values when enabling WhatsApp
-                            const defaultSmsCount = Math.round(stores * transactions * 0.1);
-                            setWhatsappMarketTicket(defaultSmsCount);
-                            setWhatsappUtility(defaultSmsCount);
-                            setWhatsappOtp(defaultSmsCount);
-                            setWhatsappMarketing(10000);
-                          }
-                        }}
-                      />
+                <div className="border-b py-5">
+                  <div className="flex items-start mb-3">
+                    <input 
+                      type="checkbox" 
+                      id="whatsappEnabled" 
+                      className="checkbox-custom mt-1"
+                      checked={whatsappEnabled}
+                      onChange={(e) => {
+                        setWhatsappEnabled(e.target.checked);
+                        if (e.target.checked) {
+                          // Set default values when enabling WhatsApp
+                          const defaultSmsCount = Math.round(stores * transactions * 0.1);
+                          setWhatsappMarketTicket(defaultSmsCount);
+                          setWhatsappUtility(defaultSmsCount);
+                          setWhatsappOtp(defaultSmsCount);
+                          setWhatsappMarketing(10000);
+                        }
+                      }}
+                    />
+                    <div>
+                      <label className="block text-sm font-medium mb-1" htmlFor="whatsappEnabled">
+                        WhatsApp Platform for Loyalty and Digital Receipts
+                      </label>
+                      <p className="text-xs text-gray-500">Base fee: $630/month + tiered per-location fees</p>
+                    </div>
+                  </div>
+                  
+                  {whatsappEnabled && (
+                    <div className="ml-7 space-y-4">
                       <div>
-                        <label className="block text-sm font-medium mb-1" htmlFor="whatsappEnabled">
-                          WhatsApp Platform for Loyalty and Digital Receipts
-                        </label>
-                        <p className="text-xs text-gray-500">Base fee: $630/month + tiered per-location fees</p>
+                        <label className="block text-sm font-medium mb-1">Location Pricing Tiers</label>
+                        <div className="text-xs text-gray-600 grid grid-cols-2 gap-2">
+                          <div>Tier 1-10: $9.00/month/store</div>
+                          <div>Tier 11-80: $8.10/month/store</div>
+                          <div>Tier 81-149: $7.20/month/store</div>
+                          <div>Tier 150+: $6.30/month/store</div>
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Country for Message Pricing</label>
+                        <select 
+                          className="border rounded-md p-2.5 input-field w-full"
+                          value={whatsappCountry}
+                          onChange={(e) => setWhatsappCountry(e.target.value)}
+                        >
+                          {Object.keys(whatsappRates).map(country => (
+                            <option key={country} value={country}>
+                              {country}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Estimated Monthly Message Volume</label>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-xs text-gray-600 mb-1">
+                              Digital Receipts (${whatsappRates[whatsappCountry].marketTicket.toFixed(4)}/msg)
+                              <span className="text-gray-500 ml-1">- Digital receipts sent to customers</span>
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              className="w-full border rounded-md p-2 input-field"
+                              value={whatsappMarketTicket}
+                              onChange={(e) => setWhatsappMarketTicket(parseInt(e.target.value) || 0)}
+                              placeholder="# of messages"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-gray-600 mb-1">
+                              Utility Campaign Messages (${whatsappRates[whatsappCountry].utility.toFixed(2)}/msg)
+                              <span className="text-gray-500 ml-1">- Service notifications and updates</span>
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              className="w-full border rounded-md p-2 input-field"
+                              value={whatsappUtility}
+                              onChange={(e) => setWhatsappUtility(parseInt(e.target.value) || 0)}
+                              placeholder="# of messages"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-gray-600 mb-1">
+                              Marketing Campaign Messages (${whatsappRates[whatsappCountry].marketing.toFixed(2)}/msg)
+                              <span className="text-gray-500 ml-1">- Promotional messages and offers</span>
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              className="w-full border rounded-md p-2 input-field"
+                              value={whatsappMarketing}
+                              onChange={(e) => setWhatsappMarketing(parseInt(e.target.value) || 0)}
+                              placeholder="# of messages"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-gray-600 mb-1">
+                              Authentication OTP Messages (${whatsappRates[whatsappCountry].otp.toFixed(2)}/msg)
+                              <span className="text-gray-500 ml-1">- One-time passwords and verification codes</span>
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              className="w-full border rounded-md p-2 input-field"
+                              value={whatsappOtp}
+                              onChange={(e) => setWhatsappOtp(parseInt(e.target.value) || 0)}
+                              placeholder="# of messages"
+                            />
+                          </div>
+                        </div>
+                        <div className="mt-2 text-xs text-gray-500">
+                          Default calculation: 10% of total monthly transactions ({Math.round(stores * transactions * 0.1).toLocaleString()} messages) for receipts, utility, and OTP messages
+                        </div>
+                      </div>
+                      
+                      <div className="pt-2 text-xs bg-gray-50 p-3 rounded-md">
+                        <div className="font-medium mb-1">WhatsApp Fee Summary:</div>
+                        <div className="grid grid-cols-2 gap-1">
+                          <span>Base Platform Fee:</span>
+                          <span className="text-right">{formatCurrency(whatsappEnabled ? 630 : 0)}</span>
+                          
+                          <span>Per-Location Fees ({stores} stores):</span>
+                          <span className="text-right">{formatCurrency(whatsappEnabled ? calculateWhatsappStoreFeeTiers(stores) : 0)}</span>
+                          
+                          <span className="font-medium pt-2">Message Fees Breakdown:</span>
+                          <span className="text-right font-medium pt-2"></span>
+                          
+                          <span className="pl-2">• Digital Receipts ({whatsappMarketTicket.toLocaleString()} × ${whatsappRates[whatsappCountry].marketTicket.toFixed(4)}):</span>
+                          <span className="text-right">{formatCurrency(whatsappMarketTicket * whatsappRates[whatsappCountry].marketTicket)}</span>
+                          
+                          <span className="pl-2">• Utility Messages ({whatsappUtility.toLocaleString()} × ${whatsappRates[whatsappCountry].utility.toFixed(2)}):</span>
+                          <span className="text-right">{formatCurrency(whatsappUtility * whatsappRates[whatsappCountry].utility)}</span>
+                          
+                          <span className="pl-2">• Marketing Messages ({whatsappMarketing.toLocaleString()} × ${whatsappRates[whatsappCountry].marketing.toFixed(2)}):</span>
+                          <span className="text-right">{formatCurrency(whatsappMarketing * whatsappRates[whatsappCountry].marketing)}</span>
+                          
+                          <span className="pl-2">• OTP Messages ({whatsappOtp.toLocaleString()} × ${whatsappRates[whatsappCountry].otp.toFixed(2)}):</span>
+                          <span className="text-right">{formatCurrency(whatsappOtp * whatsappRates[whatsappCountry].otp)}</span>
+                          
+                          <span className="font-medium pt-1 border-t mt-1">Total Message Fees:</span>
+                          <span className="text-right font-medium pt-1 border-t mt-1">{formatCurrency(feeBreakdown.whatsapp.messages)}</span>
+                          
+                          <span className="font-medium pt-1 border-t mt-1">Total WhatsApp Monthly:</span>
+                          <span className="text-right font-medium pt-1 border-t mt-1">{formatCurrency(feeBreakdown.whatsapp.total)}</span>
+                        </div>
                       </div>
                     </div>
-                    
-                    {whatsappEnabled && (
-                      <div className="ml-7 space-y-4">
-                        <div>
-                          <label className="block text-sm font-medium mb-1">Location Pricing Tiers</label>
-                          <div className="text-xs text-gray-600 grid grid-cols-2 gap-2">
-                            <div>Tier 1-10: $9.00/month/store</div>
-                            <div>Tier 11-80: $8.10/month/store</div>
-                            <div>Tier 81-149: $7.20/month/store</div>
-                            <div>Tier 150+: $6.30/month/store</div>
-                          </div>
-                        </div>
-                        
-                        <div>
-                          <label className="block text-sm font-medium mb-2">Country for Message Pricing</label>
-                          <select 
-                            className="border rounded-md p-2.5 input-field w-full"
-                            value={whatsappCountry}
-                            onChange={(e) => setWhatsappCountry(e.target.value)}
-                          >
-                            {Object.keys(whatsappRates).map(country => (
-                              <option key={country} value={country}>
-                                {country}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        
-                        <div>
-                          <label className="block text-sm font-medium mb-2">Estimated Monthly Message Volume</label>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <div>
-                              <label className="block text-xs text-gray-600 mb-1">Digital Receipts (${whatsappRates[whatsappCountry].marketTicket.toFixed(4)}/msg)</label>
-                              <input
-                                type="number"
-                                min="0"
-                                className="w-full border rounded-md p-2 input-field"
-                                value={whatsappMarketTicket}
-                                onChange={(e) => setWhatsappMarketTicket(parseInt(e.target.value) || 0)}
-                                placeholder="# of messages"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-xs text-gray-600 mb-1">Utility Campaign Messages (${whatsappRates[whatsappCountry].utility.toFixed(2)}/msg)</label>
-                              <input
-                                type="number"
-                                min="0"
-                                className="w-full border rounded-md p-2 input-field"
-                                value={whatsappUtility}
-                                onChange={(e) => setWhatsappUtility(parseInt(e.target.value) || 0)}
-                                placeholder="# of messages"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-xs text-gray-600 mb-1">Marketing Campaign Messages (${whatsappRates[whatsappCountry].marketing.toFixed(2)}/msg)</label>
-                              <input
-                                type="number"
-                                min="0"
-                                className="w-full border rounded-md p-2 input-field"
-                                value={whatsappMarketing}
-                                onChange={(e) => setWhatsappMarketing(parseInt(e.target.value) || 0)}
-                                placeholder="# of messages"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-xs text-gray-600 mb-1">Authentication OTP Messages (${whatsappRates[whatsappCountry].otp.toFixed(2)}/msg)</label>
-                              <input
-                                type="number"
-                                min="0"
-                                className="w-full border rounded-md p-2 input-field"
-                                value={whatsappOtp}
-                                onChange={(e) => setWhatsappOtp(parseInt(e.target.value) || 0)}
-                                placeholder="# of messages"
-                              />
-                            </div>
-                          </div>
-                        </div>
-                        
-                        <div className="pt-2 text-xs bg-gray-50 p-3 rounded-md">
-                          <div className="font-medium mb-1">WhatsApp Fee Summary:</div>
-                          <div className="grid grid-cols-2 gap-1">
-                            <span>Base Platform Fee:</span>
-                            <span className="text-right">{formatCurrency(whatsappEnabled ? 630 : 0)}</span>
-                            
-                            <span>Per-Location Fees ({stores} stores):</span>
-                            <span className="text-right">{formatCurrency(whatsappEnabled ? calculateWhatsappStoreFeeTiers(stores) : 0)}</span>
-                            
-                            <span>Message Fees:</span>
-                            <span className="text-right">{formatCurrency(feeBreakdown.whatsapp.messages)}</span>
-                            
-                            <span className="font-medium pt-1 border-t mt-1">Total WhatsApp Monthly:</span>
-                            <span className="text-right font-medium pt-1 border-t mt-1">{formatCurrency(feeBreakdown.whatsapp.total)}</span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                  )}
+                </div>
                 )}
                 
                 <div>
