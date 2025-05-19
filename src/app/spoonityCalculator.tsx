@@ -2261,13 +2261,14 @@ export default function SpoonityCalculator() {
                       </div>
                       
                       {(giftCard || (smsMessages && parseInt(smsMessages) > 0) || independentServer || premiumSLA || 
-                      premiumSupport || cms || appType !== 'none' || dataIngestion) && (
+                      premiumSupport || cms || appType !== 'none' || dataIngestion || whatsappEnabled) && (
                         <div className="border-t pt-4 mt-4">
                           <h4 className="font-medium mb-3">Add-on Services</h4>
                           <div className="grid grid-cols-2 gap-4 text-sm">
                             <div className="space-y-2 text-gray-500">
                               {giftCard && <p>Gift Card Module</p>}
                               {smsMessages && parseInt(smsMessages) > 0 && <p>SMS Messages ({smsMessages})</p>}
+                              {whatsappEnabled && <p>WhatsApp Platform ({whatsappCountry})</p>}
                               {independentServer && <p>Independent Server</p>}
                               {premiumSLA && <p>Premium SLA</p>}
                               {cms && <p>Content Management System</p>}
@@ -2280,6 +2281,7 @@ export default function SpoonityCalculator() {
                             <div className="space-y-2 text-right font-medium">
                               {giftCard && <p>{formatCurrency(feeBreakdown.giftCard)}</p>}
                               {smsMessages && parseInt(smsMessages) > 0 && <p>{formatCurrency(feeBreakdown.sms)}</p>}
+                              {whatsappEnabled && <p>{formatCurrency(feeBreakdown.whatsapp.total)}</p>}
                               {independentServer && <p>{formatCurrency(feeBreakdown.server)}</p>}
                               {premiumSLA && <p>{formatCurrency(feeBreakdown.sla)}</p>}
                               {cms && <p>{formatCurrency(feeBreakdown.cms)}</p>}
@@ -2290,6 +2292,28 @@ export default function SpoonityCalculator() {
                               {dataIngestion && <p>{formatCurrency((monthlyFees - (premiumSupport ? 2000 + (monthlyFees * 0.1) : 0)) * 0.2)}</p>}
                             </div>
                           </div>
+                          
+                          {whatsappEnabled && (
+                            <div className="mt-3 text-xs bg-gray-50 p-3 rounded-md">
+                              <div className="font-medium mb-1">WhatsApp Message Breakdown:</div>
+                              <div className="grid grid-cols-2 gap-1">
+                                <span className="pl-2">• Digital Receipts ({whatsappMarketTicket.toLocaleString()} × ${whatsappRates[whatsappCountry].marketTicket.toFixed(4)}):</span>
+                                <span className="text-right">{formatCurrency(whatsappMarketTicket * whatsappRates[whatsappCountry].marketTicket)}</span>
+                                
+                                <span className="pl-2">• Utility Messages ({whatsappUtility.toLocaleString()} × ${whatsappRates[whatsappCountry].utility.toFixed(2)}):</span>
+                                <span className="text-right">{formatCurrency(whatsappUtility * whatsappRates[whatsappCountry].utility)}</span>
+                                
+                                <span className="pl-2">• Marketing Messages ({whatsappMarketing.toLocaleString()} × ${whatsappRates[whatsappCountry].marketing.toFixed(2)}):</span>
+                                <span className="text-right">{formatCurrency(whatsappMarketing * whatsappRates[whatsappCountry].marketing)}</span>
+                                
+                                <span className="pl-2">• OTP Messages ({whatsappOtp.toLocaleString()} × ${whatsappRates[whatsappCountry].otp.toFixed(2)}):</span>
+                                <span className="text-right">{formatCurrency(whatsappOtp * whatsappRates[whatsappCountry].otp)}</span>
+                                
+                                <span className="font-medium pt-1 border-t mt-1">Total Message Fees:</span>
+                                <span className="text-right font-medium pt-1 border-t mt-1">{formatCurrency(feeBreakdown.whatsapp.messages)}</span>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )}
                       
@@ -2320,7 +2344,7 @@ export default function SpoonityCalculator() {
                                     </>
                                   )}
                                   
-                                  {(giftCard || independentServer || premiumSLA || cms || appType !== 'none') && (
+                                  {(giftCard || independentServer || premiumSLA || cms || appType !== 'none' || whatsappEnabled) && (
                                     <>
                                       <div className="text-gray-700">Platform Add-ons:</div>
                                       <div className="text-right font-medium">{formatCurrency(
@@ -2328,7 +2352,8 @@ export default function SpoonityCalculator() {
                                         (independentServer ? 500 : 0) + 
                                         (premiumSLA ? 2000 : 0) + 
                                         (cms ? 530 : 0) + 
-                                        (appType === 'premium' ? 1080 : (appType === 'standard' || appType === 'pwa' ? 350 : 0))
+                                        (appType === 'premium' ? 1080 : (appType === 'standard' || appType === 'pwa' ? 350 : 0)) +
+                                        (whatsappEnabled ? feeBreakdown.whatsapp.total : 0)
                                       )}</div>
                                     </>
                                   )}
