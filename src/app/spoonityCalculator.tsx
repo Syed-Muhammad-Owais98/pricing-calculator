@@ -448,8 +448,11 @@ export default function SpoonityCalculator() {
       // Then parse the JSON
       const tokenData = JSON.parse(decodedString);
       
-      // Check if the token contains the required paraphrase
-      return tokenData.paraphrase === 'client-specific-encrypt-key';
+      // Check if the token contains the required paraphrase and is not expired
+      const isValid = tokenData.paraphrase === 'client-specific-encrypt-key' && 
+                     new Date(tokenData.expiresAt) > new Date();
+      
+      return isValid;
     } catch (error) {
       console.error('Error validating token:', error);
       return false;
