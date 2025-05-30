@@ -1561,12 +1561,10 @@ export default function SpoonityCalculator() {
       {submitSuccess ? (
         <div className="max-w-4xl mx-auto p-4">
           <div className="rounded-lg overflow-hidden shadow-md">
-            <div className="bg-gradient-to-r from-green-500 to-green-600 p-6 text-white text-center">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-white bg-opacity-25 mb-4">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
+            <div className="bg-gradient-to-r from-[#640C6F] to-[#640C6F] p-6 text-white text-center">
+                <div className="flex justify-center mb-4">
+                  <img src="/logo.png" alt="Spoonity Logo" className="h-16 w-48 object-contain" />
+                </div>
               <h2 className="text-2xl font-bold mb-2">Thank You!</h2>
               <p className="text-lg mb-1">Your pricing information has been submitted successfully.</p>
               <p className="text-green-100">A Spoonity representative will be in touch with you shortly.</p>
