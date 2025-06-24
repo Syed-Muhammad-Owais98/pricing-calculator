@@ -744,7 +744,7 @@ export default function SpoonityCalculator() {
       y += 5;
       getTransactionFeeBreakdown(0.25 * (stores * transactions)).forEach(tier => {
         doc.setTextColor(120, 120, 120);
-        doc.text(`${tier.volume.toLocaleString()} transactions (${(tier.rate * 100).toFixed(1)} rate):`, 25, y);
+        doc.text(`${tier.volume.toLocaleString()} transactions (${(tier.rate * 100).toFixed(1)}% rate):`, 25, y);
         doc.setTextColor(40, 40, 40);
         doc.text(formatCurrency(tier.total), 190, y, { align: 'right' });
         y += 5;
@@ -1117,7 +1117,7 @@ export default function SpoonityCalculator() {
       { min: 1001, max: 10000, price: 58.11 },
     ];
     
-    // Find which tier the store count falls into
+    // Find the applicable tier
     let applicableTier = tiers[0];
     for (const tier of tiers) {
       if (storeCount >= tier.min && storeCount <= tier.max) {
@@ -1144,7 +1144,7 @@ export default function SpoonityCalculator() {
       { min: 1001, max: 10000, price: 58.11 },
     ];
     
-    // Find which tier the store count falls into
+    // Find the applicable tier
     let applicableTier = tiers[0];
     for (const tier of tiers) {
       if (storeCount >= tier.min && storeCount <= tier.max) {
@@ -1164,18 +1164,18 @@ export default function SpoonityCalculator() {
   // Function to get transaction fee tier breakdown
   const getTransactionFeeBreakdown = (transactionVolume: number) => {
     let rate = 0.005; // Default rate
-    let tierRange = "0-5,000";
+    let range = '0-5,000';
     
     if (transactionVolume > 50000) {
       rate = 0.002;
-      tierRange = "50,001+";
+      range = '50,001+';
     } else if (transactionVolume > 5000) {
       rate = 0.003;
-      tierRange = "5,001-50,000";
+      range = '5,001-50,000';
     }
     
     return [{
-      range: tierRange,
+      range: range,
       volume: transactionVolume,
       rate: rate,
       total: transactionVolume * rate
@@ -1185,18 +1185,18 @@ export default function SpoonityCalculator() {
   // Function to get marketing email tier breakdown
   const getMarketingEmailBreakdown = (emailCount: number) => {
     let rate = 0.008; // Default rate
-    let tierRange = "0-100,000";
+    let range = '0-100,000';
     
     if (emailCount > 1000000) {
       rate = 0.004;
-      tierRange = "1,000,001+";
+      range = '1,000,001+';
     } else if (emailCount > 100000) {
       rate = 0.006;
-      tierRange = "100,001-1,000,000";
+      range = '100,001-1,000,000';
     }
     
     return [{
-      range: tierRange,
+      range: range,
       count: emailCount,
       rate: rate,
       total: emailCount * rate
@@ -2760,7 +2760,7 @@ export default function SpoonityCalculator() {
                           {getTransactionFeeBreakdown(0.25 * (stores * transactions)).map((tier, index) => (
                             <div key={index} className="flex justify-between">
                               <span className="text-gray-600">
-                                {tier.volume.toLocaleString()} transactions (${(tier.rate * 100).toFixed(1)} rate):
+                                {tier.volume.toLocaleString()} transactions (${(tier.rate * 100).toFixed(1)}% rate):
                               </span>
                               <span className="font-medium">{formatCurrency(tier.total)}</span>
                             </div>
@@ -2850,7 +2850,7 @@ export default function SpoonityCalculator() {
                             </div>
                           </div>
                           
-                          {whatsappEnabled && (
+                          {/* {whatsappEnabled && (
                             <div className="mt-3 text-xs bg-gray-50 p-3 rounded-md">
                               <div className="font-medium mb-1">WhatsApp Message Breakdown:</div>
                               <div className="grid grid-cols-2 gap-1">
@@ -2870,7 +2870,7 @@ export default function SpoonityCalculator() {
                                 <span className="text-right font-medium pt-1 border-t mt-1">{formatCurrency(feeBreakdown.whatsapp.messages)}</span>
                               </div>
                             </div>
-                          )}
+                          )} */}
                         </div>
                       )}
                       
