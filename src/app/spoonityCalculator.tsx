@@ -647,148 +647,223 @@ export default function SpoonityCalculator() {
   
   // Function to generate and download PDF
   const generatePDF = () => {
-    // Check if jsPDF is loaded
     if (!jsPdfLoaded) {
       alert('PDF generation is loading. Please try again in a moment.');
       return;
     }
-    
     try {
-      console.log('Generating PDF...');
-      console.log('jsPDF available:', typeof window.jspdf !== 'undefined');
-      
-      // Make sure jsPDF is available in the global scope
-      if (typeof window.jspdf === 'undefined') {
-        throw new Error('jsPDF library not loaded properly');
-      }
-      
-      const { jsPDF } = window.jspdf;
-      console.log('Creating new jsPDF instance');
+      const { jsPDF } = (window.jspdf as any);
       const doc = new jsPDF();
-      
-      // Get structured quote data
-      const quoteData = getQuoteDetails();
-      console.log('Quote data prepared:', quoteData);
-      
-      // Set font size and styling
-      doc.setFontSize(20);
+      // --- HEADER (Purple) ---
+      doc.setFillColor(159, 98, 166); // #9F62A6
+      doc.rect(10, 10, 190, 30, 'F');
+      doc.setTextColor(255, 255, 255);
       doc.setFont('helvetica', 'bold');
-      
-      // Title
-      console.log('Adding title to PDF');
-      doc.text('SPOONITY PRICING QUOTE', 105, 20, { align: 'center' });
-      
-      // Reset font for body text
-      doc.setFontSize(12);
+      doc.setFontSize(18);
+      doc.text(planDetails[plan].name, 20, 28);
+      doc.setFontSize(22);
+      doc.text(`${formatCurrency(monthlyFees)}`, 180, 28, { align: 'right' });
+      doc.setFontSize(10);
+      doc.text('/month', 180, 34, { align: 'right' });
+      // --- CARD (White) ---
+      doc.setDrawColor(230, 230, 230);
+      doc.setFillColor(255, 255, 255);
+      doc.roundedRect(10, 42, 190, 220, 4, 4, 'F');
+      // --- Plan Description Gray Section (only behind description) ---
+      const descLines = doc.splitTextToSize(planDetails[plan].fullDescription, 170);
+      const descHeight = descLines.length * 5 + 8;
+      doc.setFillColor(247, 247, 247); // #F7F7F7
+      doc.roundedRect(15, 50, 180, descHeight, 3, 3, 'F');
+      doc.setTextColor(60, 60, 60);
       doc.setFont('helvetica', 'normal');
-      
-      // Contact Information
-      doc.setFont('helvetica', 'bold');
-      doc.text('Contact Information:', 20, 35);
+      doc.setFontSize(11);
+      let y = 58;
+      doc.text(descLines, 20, y);
+      y += descLines.length * 5 + 8;
+      // --- Fee Breakdown ---
       doc.setFont('helvetica', 'normal');
-      
-      // If quoteData is an object, proceed with detailed PDF
-      if (typeof quoteData === 'object') {
-        doc.text(`Name: ${firstName} ${lastName}`, 20, 42);
-        doc.text(`Email: ${email}`, 20, 49);
-        doc.text(`Phone: ${phone}`, 20, 56);
-        doc.text(`Company: ${company}`, 20, 63);
-        doc.text(`Role: ${role}`, 20, 70);
-        doc.text(`Business Type: ${businessType === 'corporate' ? 'Corporately Owned' : 'Franchised'}`, 20, 77);
-        
-        // Plan Details
-        doc.setFont('helvetica', 'bold');
-        doc.text('Plan Details:', 20, 90);
-        doc.setFont('helvetica', 'normal');
-        doc.text(planDetails[plan].name, 20, 97);
-        
-        // Handle long description with text wrapping
-        const splitDescription = doc.splitTextToSize(planDetails[plan].fullDescription, 170);
-        splitDescription.forEach((line, index) => {
-          doc.text(line, 20, 104 + (index * 7));
-        });
-        
-        // Calculate new Y position after the description
-        let yPos = 104 + (splitDescription.length * 7);
-        
-        // Configuration
-        doc.setFont('helvetica', 'bold');
-        doc.text('Configuration:', 20, yPos + 10);
-        doc.setFont('helvetica', 'normal');
-        doc.text(`Number of Stores: ${stores}`, 20, yPos + 17);
-        doc.text(`Transactions per Store: ${transactions}`, 20, yPos + 24);
-        if (marketing) {
-          doc.text(`Marketing Messages: ${marketing}`, 20, yPos + 31);
-          yPos += 7; // Add space for the marketing line
+      doc.setTextColor(120, 120, 120);
+      doc.text('Base License Fee:', 20, y);
+      doc.setTextColor(40, 40, 40);
+      doc.text(formatCurrency(planDetails[plan].base), 190, y, { align: 'right' });
+      y += 7;
+      doc.setTextColor(120, 120, 120);
+      doc.text(`Connection Fees (${stores} stores${stores <= 10 ? ' @ $150/store' : ''}):`, 20, y);
+      doc.setTextColor(40, 40, 40);
+      doc.text(formatCurrency(feeBreakdown.connection), 190, y, { align: 'right' });
+      y += 7;
+      doc.setTextColor(120, 120, 120);
+      doc.text('Transaction Processing:', 20, y);
+      doc.setTextColor(40, 40, 40);
+      doc.text(formatCurrency(feeBreakdown.transaction), 190, y, { align: 'right' });
+      y += 7;
+      if (plan !== 'loyalty') {
+        doc.setTextColor(120, 120, 120);
+        doc.text('Marketing Platform:', 20, y);
+        doc.setTextColor(40, 40, 40);
+        doc.text(formatCurrency(feeBreakdown.marketing), 190, y, { align: 'right' });
+        y += 7;
+        if (pushNotifications) {
+          doc.setTextColor(120, 120, 120);
+          doc.text('Push Notifications:', 20, y);
+          doc.setTextColor(40, 40, 40);
+          doc.text(formatCurrency(marketing * 0.0045), 190, y, { align: 'right' });
+          y += 7;
         }
-        
-        // Add-ons
-        doc.setFont('helvetica', 'bold');
-        doc.text('Selected Add-ons:', 20, yPos + 38);
-        doc.setFont('helvetica', 'normal');
-        if (quoteData.length === 0) {
-          doc.text('- None selected', 20, yPos + 45);
-          yPos += 7;
-        } else {
-          quoteData.forEach((addon, index) => {
-            doc.text(`- ${addon}`, 20, yPos + 45 + (index * 7));
-          });
-          yPos += (quoteData.length * 7);
-        }
-        
-        // Pricing Summary
-        doc.setFont('helvetica', 'bold');
-        doc.text('Pricing Summary:', 20, yPos + 52);
-        doc.setFont('helvetica', 'normal');
-        doc.text(`Monthly Recurring Fees: ${formatCurrency(monthlyFees)}`, 20, yPos + 59);
-        
-        // Add franchise breakdown if applicable
-        if (businessType === 'franchise') {
-          doc.text(`  Corporate Monthly Fee: ${formatCurrency(feeBreakdown.corporate)}`, 30, yPos + 66);
-          doc.text(`  Franchisee Fee per Store: ${formatCurrency(feeBreakdown.franchiseePerStore)}`, 30, yPos + 73);
-          yPos += 14;
-        }
-        
-        doc.text(`Monthly Fee per Store: ${formatCurrency(perStore)}`, 20, yPos + 66);
-        doc.text(`One-Time Setup Fees: ${formatCurrency(setupFees)}`, 20, yPos + 73);
-        doc.text(`First Year Total Cost: ${formatCurrency(monthlyFees * 12 + setupFees)}`, 20, yPos + 80);
-        
-        // Date and Disclaimer
-        doc.text(`Quote generated on: ${new Date().toLocaleDateString()}`, 20, yPos + 94);
-        
-        // Disclaimer with line wrapping
-        const splitDisclaimer = doc.splitTextToSize('This is an estimated quote based on the information provided. A Spoonity representative will contact you to provide a final quote and answer any questions.', 170);
-        splitDisclaimer.forEach((line, index) => {
-          doc.text(line, 20, yPos + 101 + (index * 7));
-        });
-      } else {
-        // Simplified PDF if the data structure is not complete
-        let y = 40;
-        doc.text(`Name: ${firstName} ${lastName}`, 20, y);
-        y += 10;
-        doc.text(`Email: ${email}`, 20, y);
-        y += 10;
-        doc.text(`Plan: ${planDetails[plan].name}`, 20, y);
-        y += 10;
-        doc.text(`Total Monthly Cost: ${formatCurrency(monthlyFees)}`, 20, y);
-        y += 10;
-        doc.text(`Setup Fee: ${formatCurrency(setupFees)}`, 20, y);
-        y += 10;
-        doc.text(`First Year Total: ${formatCurrency(monthlyFees * 12 + setupFees)}`, 20, y);
-        y += 20;
-        
-        doc.setFont('helvetica', 'italic');
-        doc.text('A Spoonity representative will contact you shortly.', 20, y);
       }
-      
-      console.log('PDF content complete, saving...');
-      // Save the PDF with a proper filename
+      // --- Add-ons Section ---
+      if (giftCard || smsEnabled || whatsappEnabled || independentServer || premiumSLA || premiumSupport || cms || appType !== 'none' || dataIngestion) {
+        y += 3;
+        doc.setDrawColor(230, 230, 230);
+        doc.line(20, y, 190, y);
+        y += 6;
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(60, 60, 60);
+        doc.text('Add-on Services:', 20, y);
+        doc.setFont('helvetica', 'normal');
+        y += 6;
+        if (giftCard) {
+          doc.setTextColor(120, 120, 120);
+          doc.text('Gift Card Base Fee:', 25, y);
+          doc.setTextColor(40, 40, 40);
+          doc.text(formatCurrency(500), 190, y, { align: 'right' });
+          y += 6;
+          doc.setTextColor(120, 120, 120);
+          doc.text(`Gift Card Per-Store Fee (${stores} stores @ $30/store):`, 25, y);
+          doc.setTextColor(40, 40, 40);
+          doc.text(formatCurrency(stores * 30), 190, y, { align: 'right' });
+          y += 6;
+        }
+        if (smsEnabled && smsMessages && parseInt(smsMessages) > 0) {
+          doc.setTextColor(120, 120, 120);
+          doc.text(`SMS Platform (${smsCountry}):`, 25, y);
+          doc.setTextColor(40, 40, 40);
+          doc.text(formatCurrency(feeBreakdown.sms), 190, y, { align: 'right' });
+          y += 6;
+        }
+        if (whatsappEnabled) {
+          doc.setTextColor(120, 120, 120);
+          doc.text('WhatsApp Base Platform Fee:', 25, y);
+          doc.setTextColor(40, 40, 40);
+          doc.text(formatCurrency(630), 190, y, { align: 'right' });
+          y += 6;
+          doc.setTextColor(120, 120, 120);
+          doc.text(`WhatsApp Per-Store Fee (${stores} stores):`, 25, y);
+          doc.setTextColor(40, 40, 40);
+          doc.text(formatCurrency(feeBreakdown.whatsapp.perStore), 190, y, { align: 'right' });
+          y += 6;
+          doc.setTextColor(120, 120, 120);
+          doc.text(`WhatsApp Message Fees (${whatsappCountry}):`, 25, y);
+          doc.setTextColor(40, 40, 40);
+          doc.text(formatCurrency(feeBreakdown.whatsapp.messages), 190, y, { align: 'right' });
+          y += 6;
+        }
+        if (independentServer) {
+          doc.setTextColor(120, 120, 120);
+          doc.text('Independent Server:', 25, y);
+          doc.setTextColor(40, 40, 40);
+          doc.text(formatCurrency(feeBreakdown.server), 190, y, { align: 'right' });
+          y += 6;
+        }
+        if (premiumSLA) {
+          doc.setTextColor(120, 120, 120);
+          doc.text('Premium SLA:', 25, y);
+          doc.setTextColor(40, 40, 40);
+          doc.text(formatCurrency(feeBreakdown.sla), 190, y, { align: 'right' });
+          y += 6;
+        }
+        if (cms) {
+          doc.setTextColor(120, 120, 120);
+          doc.text('Content Management System:', 25, y);
+          doc.setTextColor(40, 40, 40);
+          doc.text(formatCurrency(feeBreakdown.cms), 190, y, { align: 'right' });
+          y += 6;
+        }
+        if (appType !== 'none') {
+          doc.setTextColor(120, 120, 120);
+          doc.text(`Mobile App (${appType}):`, 25, y);
+          doc.setTextColor(40, 40, 40);
+          doc.text(formatCurrency(feeBreakdown.app), 190, y, { align: 'right' });
+          y += 6;
+        }
+        if (premiumSupport) {
+          doc.setTextColor(120, 120, 120);
+          doc.text('Premium Support:', 25, y);
+          doc.setTextColor(40, 40, 40);
+          doc.text(formatCurrency(feeBreakdown.support), 190, y, { align: 'right' });
+          y += 6;
+        }
+        if (dataIngestion) {
+          doc.setTextColor(120, 120, 120);
+          doc.text('Data Ingestion:', 25, y);
+          doc.setTextColor(40, 40, 40);
+          doc.text(formatCurrency((monthlyFees - (premiumSupport ? 2000 + (monthlyFees * 0.1) : 0)) * 0.2), 190, y, { align: 'right' });
+          y += 6;
+        }
+      }
+      // --- Totals ---
+      y += 3;
+      doc.setDrawColor(230, 230, 230);
+      doc.line(20, y, 190, y);
+      y += 8;
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(60, 60, 60);
+      doc.text('Monthly Recurring Fees:', 20, y);
+      doc.setTextColor(100, 12, 111); // #640C6F
+      doc.text(formatCurrency(monthlyFees), 190, y, { align: 'right' });
+      y += 7;
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(120, 120, 120);
+      doc.text('Setup Fees:', 20, y);
+      doc.setTextColor(40, 40, 40);
+      doc.text(formatCurrency(setupFees), 190, y, { align: 'right' });
+      y += 7;
+      doc.setDrawColor(230, 230, 230);
+      doc.line(20, y, 190, y);
+      y += 8;
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(60, 60, 60);
+      doc.text('First Year Total:', 20, y);
+      doc.setTextColor(100, 12, 111);
+      doc.text(formatCurrency(monthlyFees * 12 + setupFees), 190, y, { align: 'right' });
+      // --- Setup Fee Breakdown ---
+      y += 10;
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(120, 120, 120);
+      doc.text('Setup fees include:', 20, y);
+      y += 6;
+      doc.setTextColor(40, 40, 40);
+      doc.text(`• Onboarding: ${formatCurrency(feeBreakdown.setup.onboarding)}`, 25, y);
+      if (appType === 'premium') {
+        y += 6;
+        doc.text(`• Premium App Setup: ${formatCurrency(15000)}`, 25, y);
+      }
+      if (appType === 'standard') {
+        y += 6;
+        doc.text(`• Standard App Setup: ${formatCurrency(5000)}`, 25, y);
+      }
+      if (appType === 'pwa') {
+        y += 6;
+        doc.text(`• PWA Setup: ${formatCurrency(1000)}`, 25, y);
+      }
+      if (dataIngestion) {
+        y += 6;
+        doc.text(`• Data Ingestion Setup: ${formatCurrency(feeBreakdown.setup.dataIngestion)}`, 25, y);
+      }
+      // --- Disclaimer (Gray Box) ---
+      y += 10;
+      doc.setFillColor(247, 247, 247);
+      doc.roundedRect(15, y, 180, 18, 2, 2, 'F');
+      doc.setTextColor(120, 120, 120);
+      doc.setFont('helvetica', 'normal');
+      const disclaimer = 'This is an estimated quote based on the information provided. A Spoonity representative will contact you to provide a final quote and answer any questions. Pricing is subject to change based on specific requirements and contract terms.';
+      const disclaimerLines = doc.splitTextToSize(disclaimer, 170);
+      doc.text(disclaimerLines, 20, y + 7);
+      // --- Save ---
       const filename = `Spoonity_Quote_${firstName.replace(/\s+/g, '_')}_${lastName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
       doc.save(filename);
-      console.log('PDF generated and downloaded:', filename);
-    } catch (error: any) {
-      console.error('Error generating PDF:', error);
-      alert(`Failed to generate PDF: ${error.message}. Please try again or contact support.`);
+    } catch (error) {
+      alert('Failed to generate PDF. Please try again or contact support.');
     }
   };
   
@@ -972,14 +1047,27 @@ export default function SpoonityCalculator() {
   // Calculate connection fees and corporate/franchise split
   const calculateConnectionFees = (storeCount: number): number => {
     let connectionFees = 0;
-    if (storeCount <= 10) {
-      connectionFees = storeCount * 150;
-    } else if (storeCount <= 25) {
-      connectionFees = 10 * 150 + (storeCount - 10) * 135;
-    } else if (storeCount <= 40) {
-      connectionFees = 10 * 150 + 15 * 135 + (storeCount - 25) * 121.5;
-    } else {
-      connectionFees = 10 * 150 + 15 * 135 + 15 * 121.5 + (storeCount - 40) * 109.35;
+    const tiers = [
+      { min: 0, max: 10, price: 150 },
+      { min: 11, max: 25, price: 135 },
+      { min: 26, max: 40, price: 121.5 },
+      { min: 41, max: 55, price: 109.35 },
+      { min: 56, max: 100, price: 98.42 },
+      { min: 101, max: 150, price: 88.57 },
+      { min: 151, max: 250, price: 79.72 },
+      { min: 251, max: 500, price: 71.74 },
+      { min: 501, max: 1000, price: 64.57 },
+      { min: 1001, max: 10000, price: 58.11 },
+    ];
+    let remaining = storeCount;
+    for (const tier of tiers) {
+      if (remaining <= 0) break;
+      const lower = Math.max(tier.min, 1);
+      const upper = Math.min(tier.max, storeCount);
+      if (upper >= lower) {
+        const count = upper - lower + 1;
+        connectionFees += count * tier.price;
+      }
     }
     return connectionFees;
   };
@@ -1009,11 +1097,11 @@ export default function SpoonityCalculator() {
     let marketingFees = 0;
     if (plan !== 'loyalty') {
       if (marketing <= 100000) {
-        marketingFees = marketing * 0.0006;
+        marketingFees = marketing * 0.008;
       } else if (marketing <= 1000000) {
-        marketingFees = 100000 * 0.0006 + (marketing - 100000) * 0.0004;
+        marketingFees = 100000 * 0.008 + (marketing - 100000) * 0.006;
       } else {
-        marketingFees = 100000 * 0.0006 + 900000 * 0.0004 + (marketing - 1000000) * 0.0002;
+        marketingFees = 100000 * 0.008 + 900000 * 0.006 + (marketing - 1000000) * 0.004;
       }
       monthly += marketingFees;
       
@@ -2521,16 +2609,16 @@ export default function SpoonityCalculator() {
                               (0.25 * (stores * transactions) <= 5000 ? 0.005 : 
                                0.25 * (stores * transactions) <= 50000 ? 0.003 : 0.002))}</p>
                           {plan !== 'loyalty' && <p>{formatCurrency(
-                            marketing <= 100000 ? marketing * 0.0006 :
-                            marketing <= 1000000 ? 100000 * 0.0006 + (marketing - 100000) * 0.0004 :
-                            100000 * 0.0006 + 900000 * 0.0004 + (marketing - 1000000) * 0.0002
+                            marketing <= 100000 ? marketing * 0.008 :
+                            marketing <= 1000000 ? 100000 * 0.008 + (marketing - 100000) * 0.006 :
+                            100000 * 0.008 + 900000 * 0.006 + (marketing - 1000000) * 0.004
                           )}</p>}
                           {plan !== 'loyalty' && pushNotifications && <p>{formatCurrency(marketing * 0.0045)}</p>}
                         </div>
                       </div>
                       
                       {(giftCard || (smsMessages && parseInt(smsMessages) > 0) || independentServer || premiumSLA || 
-                      premiumSupport || cms || appType !== 'none' || dataIngestion || whatsappEnabled) && (
+                      premiumSupport || cms || appType !== 'none' || dataIngestion) && (
                         <div className="border-t pt-4 mt-4">
                           <h4 className="font-medium mb-3">Add-on Services</h4>
                           <div className="grid grid-cols-2 gap-4 text-sm">
