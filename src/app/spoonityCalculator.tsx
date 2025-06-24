@@ -744,7 +744,7 @@ export default function SpoonityCalculator() {
       y += 5;
       getTransactionFeeBreakdown(0.25 * (stores * transactions)).forEach(tier => {
         doc.setTextColor(120, 120, 120);
-        doc.text(`${tier.volume.toLocaleString()} transactions (${tier.rate.toFixed(2)}/transaction):`, 25, y);
+        doc.text(`${tier.volume.toLocaleString()} transactions ($${tier.rate.toFixed(3)}/transaction):`, 25, y);
         doc.setTextColor(40, 40, 40);
         doc.text(formatCurrency(tier.total), 190, y, { align: 'right' });
         y += 5;
@@ -1163,11 +1163,22 @@ export default function SpoonityCalculator() {
 
   // Function to get transaction fee tier breakdown
   const getTransactionFeeBreakdown = (transactionVolume: number) => {
+    let rate = 0.5; // Default rate
+    let range = '0-5,000';
+    
+    if (transactionVolume > 50000) {
+      rate = 0.2;
+      range = '50,001+';
+    } else if (transactionVolume > 5000) {
+      rate = 0.3;
+      range = '5,001-50,000';
+    }
+    
     return [{
-      range: 'All transactions',
+      range: range,
       volume: transactionVolume,
-      rate: 0.30,
-      total: transactionVolume * 0.30
+      rate: rate,
+      total: transactionVolume * rate
     }];
   };
 
@@ -1203,7 +1214,14 @@ export default function SpoonityCalculator() {
     
     // Transaction fees (25% of total)
     let transactionVolume = 0.25 * (stores * transactions);
-    let transactionFees = transactionVolume * 0.30; // $0.30 per transaction
+    let transactionFees = 0;
+    if (transactionVolume > 50000) {
+      transactionFees = transactionVolume * 0.002;
+    } else if (transactionVolume > 5000) {
+      transactionFees = transactionVolume * 0.003;
+    } else {
+      transactionFees = transactionVolume * 0.005;
+    }
     monthly += transactionFees;
     
     // Marketing emails (for Marketing and Intelligence plans)
@@ -2742,7 +2760,7 @@ export default function SpoonityCalculator() {
                           {getTransactionFeeBreakdown(0.25 * (stores * transactions)).map((tier, index) => (
                             <div key={index} className="flex justify-between">
                               <span className="text-gray-600">
-                                {tier.volume.toLocaleString()} transactions (${tier.rate.toFixed(2)}/transaction):
+                                {tier.volume.toLocaleString()} transactions (${tier.rate.toFixed(1)}/transaction):
                               </span>
                               <span className="font-medium">{formatCurrency(tier.total)}</span>
                             </div>
