@@ -688,7 +688,7 @@ export default function SpoonityCalculator() {
       doc.text(formatCurrency(planDetails[plan].base), 190, y, { align: 'right' });
       y += 7;
       doc.setTextColor(120, 120, 120);
-      doc.text(`Connection Fees (${stores} stores${stores <= 10 ? ' @ $150/store' : ''}):`, 20, y);
+      doc.text(`Connection Fees (${stores} stores):`, 20, y);
       doc.setTextColor(40, 40, 40);
       doc.text(formatCurrency(feeBreakdown.connection), 190, y, { align: 'right' });
       y += 7;
@@ -710,6 +710,64 @@ export default function SpoonityCalculator() {
           doc.text(formatCurrency(marketing * 0.0045), 190, y, { align: 'right' });
           y += 7;
         }
+      }
+      
+      // --- Tier Breakdowns ---
+      y += 3;
+      doc.setDrawColor(230, 230, 230);
+      doc.line(20, y, 190, y);
+      y += 6;
+      
+      // Connection Fee Tier Breakdown
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(60, 60, 60);
+      doc.text('Connection Fee Breakdown:', 20, y);
+      doc.setFont('helvetica', 'normal');
+      y += 6;
+      getConnectionFeeBreakdown(stores).forEach(tier => {
+        doc.setTextColor(120, 120, 120);
+        doc.text(`${tier.count} stores (Tier ${tier.range} @ $${tier.price}/store):`, 25, y);
+        doc.setTextColor(40, 40, 40);
+        doc.text(formatCurrency(tier.total), 190, y, { align: 'right' });
+        y += 5;
+      });
+      
+      // Transaction Processing Tier Breakdown
+      y += 3;
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(60, 60, 60);
+      doc.text('Transaction Processing Breakdown:', 20, y);
+      doc.setFont('helvetica', 'normal');
+      y += 6;
+      doc.setTextColor(120, 120, 120);
+      doc.text(`Total Volume: ${Math.round(0.25 * (stores * transactions)).toLocaleString()} transactions`, 25, y);
+      y += 5;
+      getTransactionFeeBreakdown(0.25 * (stores * transactions)).forEach(tier => {
+        doc.setTextColor(120, 120, 120);
+        doc.text(`${tier.volume.toLocaleString()} transactions (${(tier.rate * 100).toFixed(1)} rate):`, 25, y);
+        doc.setTextColor(40, 40, 40);
+        doc.text(formatCurrency(tier.total), 190, y, { align: 'right' });
+        y += 5;
+      });
+      
+      // Marketing Email Tier Breakdown
+      if (plan !== 'loyalty') {
+        y += 3;
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(60, 60, 60);
+        doc.text('Marketing Email Breakdown:', 20, y);
+        doc.setFont('helvetica', 'normal');
+        y += 6;
+        doc.setTextColor(120, 120, 120);
+        doc.text(`Total Emails: ${marketing.toLocaleString()}`, 25, y);
+        y += 5;
+        getMarketingEmailBreakdown(marketing).forEach(tier => {
+          doc.setTextColor(120, 120, 120);
+          doc.text(`${tier.count.toLocaleString()} emails ($${(tier.rate * 1000).toFixed(1)}/1K rate):`, 25, y);
+          doc.setTextColor(40, 40, 40);
+          doc.text(formatCurrency(tier.total), 190, y, { align: 'right' });
+          y += 5;
+        });
       }
       // --- Add-ons Section ---
       if (giftCard || smsEnabled || whatsappEnabled || independentServer || premiumSLA || premiumSupport || cms || appType !== 'none' || dataIngestion) {
@@ -1046,7 +1104,6 @@ export default function SpoonityCalculator() {
   
   // Calculate connection fees and corporate/franchise split
   const calculateConnectionFees = (storeCount: number): number => {
-    let connectionFees = 0;
     const tiers = [
       { min: 0, max: 10, price: 150 },
       { min: 11, max: 25, price: 135 },
@@ -1059,19 +1116,93 @@ export default function SpoonityCalculator() {
       { min: 501, max: 1000, price: 64.57 },
       { min: 1001, max: 10000, price: 58.11 },
     ];
-    let remaining = storeCount;
+    
+    // Find which tier the store count falls into
+    let applicableTier = tiers[0];
     for (const tier of tiers) {
-      if (remaining <= 0) break;
-      const lower = Math.max(tier.min, 1);
-      const upper = Math.min(tier.max, storeCount);
-      if (upper >= lower) {
-        const count = upper - lower + 1;
-        connectionFees += count * tier.price;
+      if (storeCount >= tier.min && storeCount <= tier.max) {
+        applicableTier = tier;
+        break;
       }
     }
-    return connectionFees;
+    
+    return storeCount * applicableTier.price;
   };
   
+  // Function to get connection fee tier breakdown
+  const getConnectionFeeBreakdown = (storeCount: number) => {
+    const tiers = [
+      { min: 0, max: 10, price: 150 },
+      { min: 11, max: 25, price: 135 },
+      { min: 26, max: 40, price: 121.5 },
+      { min: 41, max: 55, price: 109.35 },
+      { min: 56, max: 100, price: 98.42 },
+      { min: 101, max: 150, price: 88.57 },
+      { min: 151, max: 250, price: 79.72 },
+      { min: 251, max: 500, price: 71.74 },
+      { min: 501, max: 1000, price: 64.57 },
+      { min: 1001, max: 10000, price: 58.11 },
+    ];
+    
+    // Find which tier the store count falls into
+    let applicableTier = tiers[0];
+    for (const tier of tiers) {
+      if (storeCount >= tier.min && storeCount <= tier.max) {
+        applicableTier = tier;
+        break;
+      }
+    }
+    
+    return [{
+      range: `${applicableTier.min}-${applicableTier.max}`,
+      count: storeCount,
+      price: applicableTier.price,
+      total: storeCount * applicableTier.price
+    }];
+  };
+
+  // Function to get transaction fee tier breakdown
+  const getTransactionFeeBreakdown = (transactionVolume: number) => {
+    let rate = 0.005; // Default rate
+    let tierRange = "0-5,000";
+    
+    if (transactionVolume > 50000) {
+      rate = 0.002;
+      tierRange = "50,001+";
+    } else if (transactionVolume > 5000) {
+      rate = 0.003;
+      tierRange = "5,001-50,000";
+    }
+    
+    return [{
+      range: tierRange,
+      volume: transactionVolume,
+      rate: rate,
+      total: transactionVolume * rate
+    }];
+  };
+
+  // Function to get marketing email tier breakdown
+  const getMarketingEmailBreakdown = (emailCount: number) => {
+    let rate = 0.008; // Default rate
+    let tierRange = "0-100,000";
+    
+    if (emailCount > 1000000) {
+      rate = 0.004;
+      tierRange = "1,000,001+";
+    } else if (emailCount > 100000) {
+      rate = 0.006;
+      tierRange = "100,001-1,000,000";
+    }
+    
+    return [{
+      range: tierRange,
+      count: emailCount,
+      rate: rate,
+      total: emailCount * rate
+    }];
+  };
+
   // Calculate the fees
   function calculateFees() {
     // Base license fee
@@ -1084,24 +1215,24 @@ export default function SpoonityCalculator() {
     // Transaction fees (25% of total)
     let transactionVolume = 0.25 * (stores * transactions);
     let transactionFees = 0;
-    if (transactionVolume <= 5000) {
-      transactionFees = transactionVolume * 0.005;
-    } else if (transactionVolume <= 50000) {
-      transactionFees = 5000 * 0.005 + (transactionVolume - 5000) * 0.003;
+    if (transactionVolume > 50000) {
+      transactionFees = transactionVolume * 0.002;
+    } else if (transactionVolume > 5000) {
+      transactionFees = transactionVolume * 0.003;
     } else {
-      transactionFees = 5000 * 0.005 + 45000 * 0.003 + (transactionVolume - 50000) * 0.002;
+      transactionFees = transactionVolume * 0.005;
     }
     monthly += transactionFees;
     
     // Marketing emails (for Marketing and Intelligence plans)
     let marketingFees = 0;
     if (plan !== 'loyalty') {
-      if (marketing <= 100000) {
-        marketingFees = marketing * 0.008;
-      } else if (marketing <= 1000000) {
-        marketingFees = 100000 * 0.008 + (marketing - 100000) * 0.006;
+      if (marketing > 1000000) {
+        marketingFees = marketing * 0.004;
+      } else if (marketing > 100000) {
+        marketingFees = marketing * 0.006;
       } else {
-        marketingFees = 100000 * 0.008 + 900000 * 0.006 + (marketing - 1000000) * 0.004;
+        marketingFees = marketing * 0.008;
       }
       monthly += marketingFees;
       
@@ -1694,8 +1825,7 @@ export default function SpoonityCalculator() {
                   )}
                   
                   {/* Add-ons Section */}
-                  {(giftCard || smsEnabled || whatsappEnabled || independentServer || premiumSLA || 
-                    premiumSupport || cms || appType !== 'none' || dataIngestion) && (
+                  {(giftCard || smsEnabled || whatsappEnabled || independentServer || premiumSLA || premiumSupport || cms || appType !== 'none' || dataIngestion) && (
                     <div className="border-t pt-2 mt-2">
                       <div className="font-medium mb-2">Add-on Services:</div>
                       {giftCard && (
@@ -2591,33 +2721,75 @@ export default function SpoonityCalculator() {
                       <div className="grid grid-cols-2 gap-4 text-sm">
                         <div className="space-y-2 text-gray-500">
                           <p>Base License Fee</p>
-                          <p>Connection Fees ({stores} stores {stores <= 10 ? '@ $150/store' : 
-                              stores <= 25 ? '@ $135/store' : 
-                              stores <= 40 ? '@ $121.50/store' : 
-                              '@ $109.35/store'})</p>
+                          <p>Connection Fees ({stores} stores)</p>
                           <p>Transaction Processing</p>
                           {plan !== 'loyalty' && <p>Marketing Emails</p>}
                           {plan !== 'loyalty' && pushNotifications && <p>Push Notifications</p>}
                         </div>
                         <div className="space-y-2 text-right font-medium">
                           <p>{formatCurrency(planDetails[plan].base)}</p>
-                          <p>{formatCurrency(stores <= 10 ? stores * 150 : 
-                              stores <= 25 ? 10 * 150 + (stores - 10) * 135 :
-                              stores <= 40 ? 10 * 150 + 15 * 135 + (stores - 25) * 121.5 :
-                              10 * 150 + 15 * 135 + 15 * 121.5 + (stores - 40) * 109.35)}</p>
-                          <p>{formatCurrency(0.25 * (stores * transactions) * 
-                              (0.25 * (stores * transactions) <= 5000 ? 0.005 : 
-                               0.25 * (stores * transactions) <= 50000 ? 0.003 : 0.002))}</p>
-                          {plan !== 'loyalty' && <p>{formatCurrency(
-                            marketing <= 100000 ? marketing * 0.008 :
-                            marketing <= 1000000 ? 100000 * 0.008 + (marketing - 100000) * 0.006 :
-                            100000 * 0.008 + 900000 * 0.006 + (marketing - 1000000) * 0.004
-                          )}</p>}
+                          <p>{formatCurrency(feeBreakdown.connection)}</p>
+                          <p>{formatCurrency(feeBreakdown.transaction)}</p>
+                          {plan !== 'loyalty' && <p>{formatCurrency(feeBreakdown.marketing)}</p>}
                           {plan !== 'loyalty' && pushNotifications && <p>{formatCurrency(marketing * 0.0045)}</p>}
                         </div>
                       </div>
                       
-                      {(giftCard || (smsMessages && parseInt(smsMessages) > 0) || independentServer || premiumSLA || 
+                      {/* Connection Fee Tier Breakdown */}
+                      <div className="bg-gray-50 rounded-lg p-4">
+                        <h4 className="font-medium mb-2 text-sm">Connection Fee Breakdown</h4>
+                        <div className="space-y-1 text-xs">
+                          {getConnectionFeeBreakdown(stores).map((tier, index) => (
+                            <div key={index} className="flex justify-between">
+                              <span className="text-gray-600">
+                                {tier.count} stores (Tier {tier.range} @ ${tier.price}/store):
+                              </span>
+                              <span className="font-medium">{formatCurrency(tier.total)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      
+                      {/* Transaction Processing Tier Breakdown */}
+                      <div className="bg-gray-50 rounded-lg p-4">
+                        <h4 className="font-medium mb-2 text-sm">Transaction Processing Breakdown</h4>
+                        <div className="space-y-1 text-xs">
+                          <div className="flex justify-between mb-1">
+                            <span className="text-gray-600">Total Volume: {Math.round(0.25 * (stores * transactions)).toLocaleString()} transactions</span>
+                          </div>
+                          {getTransactionFeeBreakdown(0.25 * (stores * transactions)).map((tier, index) => (
+                            <div key={index} className="flex justify-between">
+                              <span className="text-gray-600">
+                                {tier.volume.toLocaleString()} transactions (${(tier.rate * 100).toFixed(1)} rate):
+                              </span>
+                              <span className="font-medium">{formatCurrency(tier.total)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      
+                      {/* Marketing Email Tier Breakdown */}
+                      {plan !== 'loyalty' && (
+                        <div className="bg-gray-50 rounded-lg p-4">
+                          <h4 className="font-medium mb-2 text-sm">Marketing Email Breakdown</h4>
+                          <div className="space-y-1 text-xs">
+                            <div className="flex justify-between mb-1">
+                              <span className="text-gray-600">Total Emails: {marketing.toLocaleString()}</span>
+                            </div>
+                            {getMarketingEmailBreakdown(marketing).map((tier, index) => (
+                              <div key={index} className="flex justify-between">
+                                <span className="text-gray-600">
+                                  {tier.count.toLocaleString()} emails (${(tier.rate * 1000).toFixed(1)}/1K rate):
+                                </span>
+                                <span className="font-medium">{formatCurrency(tier.total)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Add-ons Section */}
+                      {(giftCard || smsEnabled || whatsappEnabled || independentServer || premiumSLA || 
                       premiumSupport || cms || appType !== 'none' || dataIngestion) && (
                         <div className="border-t pt-4 mt-4">
                           <h4 className="font-medium mb-3">Add-on Services</h4>
@@ -2629,7 +2801,7 @@ export default function SpoonityCalculator() {
                                   <p>Gift Card Per-Store Fee ({stores} stores @ $30/store)</p>
                                 </>
                               )}
-                              {smsMessages && parseInt(smsMessages) > 0 && <p>SMS Messages ({smsMessages})</p>}
+                              {smsEnabled && smsMessages && parseInt(smsMessages) > 0 && <p>SMS Messages ({smsMessages})</p>}
                               {whatsappEnabled && (
                                 <>
                                   <p>WhatsApp Base Platform Fee</p>
@@ -2702,157 +2874,61 @@ export default function SpoonityCalculator() {
                         </div>
                       )}
                       
-                      <div className="border-t border-b py-4 my-2">
-                        <div className="grid grid-cols-2 gap-4 text-sm">
-                          <div className="font-medium">Monthly Fee per Store:</div>
-                          <div className="text-right font-medium">{formatCurrency(perStore)}</div>
-                          
-                          {businessType === 'franchise' && (
-                            <>
-                              <div className="col-span-2 mt-4 mb-2">
-                                <h3 className="font-semibold text-base text-gray-800 border-b pb-1">Suggested Cost Breakdown for Franchise Model</h3>
-                              </div>
-                              
-                              <div className="col-span-2 bg-purple-50 rounded-lg p-4 mb-3 border border-purple-200">
-                                <h4 className="font-medium text-purple-900 mb-2">Corporate Office Responsibilities</h4>
-                                <div className="grid grid-cols-2 gap-2 text-sm mb-3">
-                                  <div className="text-gray-700">Platform License Fee:</div>
-                                  <div className="text-right font-medium">{formatCurrency(feeBreakdown.baseLicense)}</div>
-                                  
-                                  <div className="text-gray-700">Transaction Processing:</div>
-                                  <div className="text-right font-medium">{formatCurrency(feeBreakdown.transaction)}</div>
-                                  
-                                  {plan !== 'loyalty' && (
-                                    <>
-                                      <div className="text-gray-700">Marketing Costs:</div>
-                                      <div className="text-right font-medium">{formatCurrency(feeBreakdown.marketing)}</div>
-                                    </>
-                                  )}
-                                  
-                                  {(giftCard || independentServer || premiumSLA || cms || appType !== 'none' || whatsappEnabled) && (
-                                    <>
-                                      <div className="text-gray-700">Platform Add-ons:</div>
-                                      <div className="text-right font-medium">{formatCurrency(
-                                        (giftCard ? 500 : 0) + 
-                                        (independentServer ? 500 : 0) + 
-                                        (premiumSLA ? 2000 : 0) + 
-                                        (cms ? 530 : 0) + 
-                                        (appType === 'premium' ? 1080 : (appType === 'standard' || appType === 'pwa' ? 350 : 0)) +
-                                        (whatsappEnabled ? feeBreakdown.whatsapp.total : 0)
-                                      )}</div>
-                                    </>
-                                  )}
-                                  
-                                  {(premiumSupport) && (
-                                    <>
-                                      <div className="text-gray-700">Support Services:</div>
-                                      <div className="text-right font-medium">{formatCurrency(feeBreakdown.support)}</div>
-                                    </>
-                                  )}
-                                  
-                                  <div className="text-gray-700 font-semibold pt-2 border-t mt-1">Total Corporate Monthly Cost:</div>
-                                  <div className="text-right font-semibold pt-2 border-t mt-1">{formatCurrency(feeBreakdown.corporate)}</div>
-                                  
-                                  <div className="text-gray-700">One-time Setup Fees:</div>
-                                  <div className="text-right font-medium">{formatCurrency(setupFees)}</div>
-                                </div>
-                                <div className="text-xs text-gray-600">
-                                  Suggested Name: "Spoonity Enterprise Platform Fee" - Billed directly to corporate office
-                                </div>
-                              </div>
-                              
-                              <div className="col-span-2 bg-orange-50 rounded-lg p-4 border border-orange-200">
-                                <h4 className="font-medium text-orange-900 mb-2">Franchisee Responsibilities</h4>
-                                <div className="grid grid-cols-2 gap-2 text-sm mb-3">
-                                  <div className="text-gray-700">Connection Fee per Location:</div>
-                                  <div className="text-right font-medium">{formatCurrency(feeBreakdown.franchiseePerStore)}</div>
-                                  
-                                  {giftCard && (
-                                    <>
-                                      <div className="text-gray-700">Gift Card Fee per Location:</div>
-                                      <div className="text-right font-medium">{formatCurrency(30)}</div>
-                                    </>
-                                  )}
-                                  
-                                  <div className="text-gray-700 font-semibold pt-2 border-t mt-1">Total Monthly Fee per Store:</div>
-                                  <div className="text-right font-semibold pt-2 border-t mt-1">{formatCurrency(feeBreakdown.franchiseePerStore + (giftCard ? 30 : 0))}</div>
-                                  
-                                  <div className="col-span-2 mt-2">
-                                    <div className="flex justify-between text-gray-700">
-                                      <span>System-wide Monthly Total:</span>
-                                      <span className="font-medium">{formatCurrency(feeBreakdown.franchisee + (giftCard ? stores * 30 : 0))}</span>
-                                    </div>
-                                    <div className="text-xs text-gray-600 mt-1">
-                                      (All franchisee locations combined)
-                                    </div>
-                                  </div>
-                                </div>
-                                <div className="text-xs text-gray-600">
-                                  Suggested Name: "Spoonity Location Connection Fee" - Billable to individual franchise locations
-                                </div>
-                              </div>
-                            </>
-                          )}
-                          
-                          <div className="font-medium">One-Time Setup Fees:</div>
-                          <div className="text-right font-medium">{formatCurrency(setupFees)}</div>
-                          
-                          <div className="col-span-2 mt-2">
-                            <div className="text-xs text-gray-600 pl-4 space-y-1">
-                              <p>Setup fees include:</p>
-                              <p>• Onboarding: {formatCurrency(feeBreakdown.setup.onboarding)}</p>
-                              {appType === 'premium' && <p>• Premium App Setup: {formatCurrency(15000)}</p>}
-                              {appType === 'standard' && <p>• Standard App Setup: {formatCurrency(5000)}</p>}
-                              {appType === 'pwa' && <p>• PWA Setup: {formatCurrency(1000)}</p>}
-                              {dataIngestion && <p>• Data Ingestion Setup: {formatCurrency(feeBreakdown.setup.dataIngestion)}</p>}
-                            </div>
-                          </div>
-                          
-                          <div className="text-base font-bold pt-2">First Year Total Cost:</div>
-                          <div className="text-right text-base font-bold spoonity-primary-text pt-2">{formatCurrency(monthlyFees * 12 + setupFees)}</div>
-                        </div>
+                      <div className="border-t pt-2 mt-2 flex justify-between font-medium">
+                        <span>Monthly Recurring Fees:</span>
+                        <span className="spoonity-primary-text">{formatCurrency(monthlyFees)}</span>
                       </div>
-                      
-                      <div>
-                        <div className="bg-gray-50 rounded-lg p-4 mb-6">
-                          <h4 className="font-medium mb-2 flex items-center">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1 spoonity-primary-text" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            About Your Quote
-                          </h4>
-                          <p className="text-sm text-gray-600">
-                            This is an estimated quote based on the information provided. A Spoonity representative will contact you to provide a final quote and answer any questions. Pricing is subject to change based on specific requirements and contract terms.
-                          </p>
-                        </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Setup Fees:</span>
+                        <span className="font-medium">{formatCurrency(setupFees)}</span>
                       </div>
-                  
-                      <div className="mt-8">
-                        <button
-                          onClick={submitData}
-                          disabled={isSubmitting}
-                          className={`w-full spoonity-cta text-white p-3 rounded-lg font-medium transform transition duration-200 hover:scale-[1.02] active:scale-[0.98] ${isSubmitting ? 'opacity-70 cursor-not-allowed' : ''}`}
-                        >
-                          {isSubmitting ? (
-                            <div className="flex items-center justify-center">
-                              <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                              </svg>
-                              Submitting Your Quote...
-                            </div>
-                          ) : (
-                            'Request Custom Quote'
-                          )}
-                        </button>
-                        {submitError && (
-                          <p className="text-red-600 text-sm mt-2">{submitError}</p>
-                        )}
-                        <p className="text-xs text-gray-500 mt-2">
-                          By submitting, a Spoonity representative will contact you with a custom quote based on your selections.
-                        </p>
+                      <div className="border-t pt-2 mt-2 flex justify-between font-medium">
+                        <span>First Year Total:</span>
+                        <span className="spoonity-primary-text">{formatCurrency(monthlyFees * 12 + setupFees)}</span>
                       </div>
                     </div>
+                  </div>
+                </div>
+                
+                <div className="text-center">
+                  <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                    <button
+                      onClick={submitData}
+                      disabled={isSubmitting}
+                      className={`w-full spoonity-cta text-white p-3 rounded-lg font-medium transform transition duration-200 hover:scale-[1.02] active:scale-[0.98] ${isSubmitting ? 'opacity-70 cursor-not-allowed' : ''}`}
+                    >
+                      {isSubmitting ? (
+                        <div className="flex items-center justify-center">
+                          <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Submitting Your Quote...
+                        </div>
+                      ) : (
+                        'Request Custom Quote'
+                      )}
+                    </button>
+                    {submitError && (
+                      <p className="text-red-600 text-sm mt-2">{submitError}</p>
+                    )}
+                    <p className="text-xs text-gray-500 mt-2">
+                      By submitting, a Spoonity representative will contact you with a custom quote based on your selections.
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="mt-8">
+                  <div className="bg-gray-50 rounded-lg p-4 mb-6">
+                    <h4 className="font-medium mb-2 flex items-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1 spoonity-primary-text" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      About Your Quote
+                    </h4>
+                    <p className="text-sm text-gray-600">
+                      This is an estimated quote based on the information provided. A Spoonity representative will contact you to provide a final quote and answer any questions. Pricing is subject to change based on specific requirements and contract terms.
+                    </p>
                   </div>
                 </div>
               </div>
