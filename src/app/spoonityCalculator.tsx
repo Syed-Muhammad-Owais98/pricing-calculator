@@ -654,55 +654,90 @@ export default function SpoonityCalculator() {
     try {
       const { jsPDF } = (window.jspdf as any);
       const doc = new jsPDF();
+      
+      // Helper function to check if we need a new page
+      const checkPageBreak = (requiredHeight: number) => {
+        const pageHeight = doc.internal.pageSize.height;
+        const margin = 20;
+        
+        if (y + requiredHeight > pageHeight - margin) {
+          doc.addPage();
+          return 20; // Reset Y to top of new page
+        }
+        return y;
+      };
+      
+      // Helper function to add text with page break check
+      const addText = (text: string, x: number, y: number, options?: any) => {
+        const newY = checkPageBreak(10);
+        doc.text(text, x, newY, options);
+        return newY + 10;
+      };
+      
+      // Helper function to add line with page break check
+      const addLine = (x1: number, y: number, x2: number) => {
+        const newY = checkPageBreak(5);
+        doc.line(x1, newY, x2, newY);
+        return newY + 5;
+      };
+      
+      let y = 20;
+      
       // --- HEADER (Purple) ---
       doc.setFillColor(159, 98, 166); // #9F62A6
-      doc.rect(10, 10, 190, 30, 'F');
+      doc.rect(10, y, 190, 30, 'F');
       doc.setTextColor(255, 255, 255);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(18);
-      doc.text(planDetails[plan].name, 20, 28);
+      doc.text(planDetails[plan].name, 20, y + 18);
       doc.setFontSize(22);
-      doc.text(`${formatCurrency(monthlyFees)}`, 180, 28, { align: 'right' });
+      doc.text(`${formatCurrency(monthlyFees)}`, 180, y + 18, { align: 'right' });
       doc.setFontSize(10);
-      doc.text('/month', 180, 34, { align: 'right' });
-      // --- CARD (White) ---
-      doc.setDrawColor(230, 230, 230);
-      doc.setFillColor(255, 255, 255);
-      doc.roundedRect(10, 42, 190, 220, 4, 4, 'F');
-      // --- Plan Description Gray Section (only behind description) ---
-      const descLines = doc.splitTextToSize(planDetails[plan].fullDescription, 170);
-      const descHeight = descLines.length * 5 + 8;
-      doc.setFillColor(247, 247, 247); // #F7F7F7
-      doc.roundedRect(15, 50, 180, descHeight, 3, 3, 'F');
+      doc.text('/month', 180, y + 24, { align: 'right' });
+      
+      y = 60;
+      
+      // --- Plan Description ---
       doc.setTextColor(60, 60, 60);
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(11);
-      let y = 58;
-      doc.text(descLines, 20, y);
-      y += descLines.length * 5 + 8;
-      // --- Fee Breakdown ---
+      const descLines = doc.splitTextToSize(planDetails[plan].fullDescription, 170);
+      const descHeight = descLines.length * 5 + 8;
+      
+      y = checkPageBreak(descHeight + 20);
+      doc.setFillColor(247, 247, 247); // #F7F7F7
+      doc.roundedRect(15, y, 180, descHeight, 3, 3, 'F');
+      doc.text(descLines, 20, y + 8);
+      y += descHeight + 10;
+      
+      // --- Basic Fee Breakdown ---
+      y = checkPageBreak(50);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(120, 120, 120);
       doc.text('Base License Fee:', 20, y);
       doc.setTextColor(40, 40, 40);
       doc.text(formatCurrency(planDetails[plan].base), 190, y, { align: 'right' });
       y += 7;
+      
       doc.setTextColor(120, 120, 120);
       doc.text(`Connection Fees (${stores} stores):`, 20, y);
       doc.setTextColor(40, 40, 40);
       doc.text(formatCurrency(feeBreakdown.connection), 190, y, { align: 'right' });
       y += 7;
+      
       doc.setTextColor(120, 120, 120);
       doc.text('Transaction Processing:', 20, y);
       doc.setTextColor(40, 40, 40);
       doc.text(formatCurrency(feeBreakdown.transaction), 190, y, { align: 'right' });
       y += 7;
+      
       if (plan !== 'loyalty') {
         doc.setTextColor(120, 120, 120);
         doc.text('Marketing Platform:', 20, y);
         doc.setTextColor(40, 40, 40);
         doc.text(formatCurrency(feeBreakdown.marketing), 190, y, { align: 'right' });
         y += 7;
+        
         if (pushNotifications) {
           doc.setTextColor(120, 120, 120);
           doc.text('Push Notifications:', 20, y);
@@ -713,18 +748,21 @@ export default function SpoonityCalculator() {
       }
       
       // --- Tier Breakdowns ---
-      y += 3;
+      y = checkPageBreak(20);
       doc.setDrawColor(230, 230, 230);
       doc.line(20, y, 190, y);
       y += 6;
       
       // Connection Fee Tier Breakdown
+      y = checkPageBreak(30);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(60, 60, 60);
       doc.text('Connection Fee Breakdown:', 20, y);
       doc.setFont('helvetica', 'normal');
       y += 6;
+      
       getConnectionFeeBreakdown(stores).forEach(tier => {
+        y = checkPageBreak(10);
         doc.setTextColor(120, 120, 120);
         doc.text(`${tier.count} stores (Tier ${tier.range} @ $${tier.price}/store):`, 25, y);
         doc.setTextColor(40, 40, 40);
@@ -733,16 +771,23 @@ export default function SpoonityCalculator() {
       });
       
       // Transaction Processing Tier Breakdown
-      y += 3;
+      y = checkPageBreak(30);
+      y = addLine(20, y, 190);
+      y += 6;
+      
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(60, 60, 60);
       doc.text('Transaction Processing Breakdown:', 20, y);
       doc.setFont('helvetica', 'normal');
       y += 6;
+      
+      y = checkPageBreak(10);
       doc.setTextColor(120, 120, 120);
       doc.text(`Total Volume: ${Math.round(0.25 * (stores * transactions)).toLocaleString()} transactions`, 25, y);
       y += 5;
+      
       getTransactionFeeBreakdown(0.25 * (stores * transactions)).forEach(tier => {
+        y = checkPageBreak(10);
         doc.setTextColor(120, 120, 120);
         doc.text(`${tier.volume.toLocaleString()} transactions ($${tier.rate.toFixed(3)}/transaction):`, 25, y);
         doc.setTextColor(40, 40, 40);
@@ -752,16 +797,23 @@ export default function SpoonityCalculator() {
       
       // Marketing Email Tier Breakdown
       if (plan !== 'loyalty') {
-        y += 3;
+        y = checkPageBreak(30);
+        y = addLine(20, y, 190);
+        y += 6;
+        
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(60, 60, 60);
         doc.text('Marketing Email Breakdown:', 20, y);
         doc.setFont('helvetica', 'normal');
         y += 6;
+        
+        y = checkPageBreak(10);
         doc.setTextColor(120, 120, 120);
         doc.text(`Total Emails: ${marketing.toLocaleString()}`, 25, y);
         y += 5;
+        
         getMarketingEmailBreakdown(marketing).forEach(tier => {
+          y = checkPageBreak(10);
           doc.setTextColor(120, 120, 120);
           doc.text(`${tier.count.toLocaleString()} emails ($${(tier.rate * 1000).toFixed(1)}/1K rate):`, 25, y);
           doc.setTextColor(40, 40, 40);
@@ -769,89 +821,114 @@ export default function SpoonityCalculator() {
           y += 5;
         });
       }
+      
       // --- Add-ons Section ---
       if (giftCard || smsEnabled || whatsappEnabled || independentServer || premiumSLA || premiumSupport || cms || appType !== 'none' || dataIngestion) {
-        y += 3;
-        doc.setDrawColor(230, 230, 230);
-        doc.line(20, y, 190, y);
+        y = checkPageBreak(30);
+        y = addLine(20, y, 190);
         y += 6;
+        
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(60, 60, 60);
         doc.text('Add-on Services:', 20, y);
         doc.setFont('helvetica', 'normal');
         y += 6;
+        
         if (giftCard) {
+          y = checkPageBreak(15);
           doc.setTextColor(120, 120, 120);
           doc.text('Gift Card Base Fee:', 25, y);
           doc.setTextColor(40, 40, 40);
           doc.text(formatCurrency(500), 190, y, { align: 'right' });
           y += 6;
+          
+          y = checkPageBreak(10);
           doc.setTextColor(120, 120, 120);
           doc.text(`Gift Card Per-Store Fee (${stores} stores @ $30/store):`, 25, y);
           doc.setTextColor(40, 40, 40);
           doc.text(formatCurrency(stores * 30), 190, y, { align: 'right' });
           y += 6;
         }
+        
         if (smsEnabled && smsMessages && parseInt(smsMessages) > 0) {
+          y = checkPageBreak(10);
           doc.setTextColor(120, 120, 120);
           doc.text(`SMS Platform (${smsCountry}):`, 25, y);
           doc.setTextColor(40, 40, 40);
           doc.text(formatCurrency(feeBreakdown.sms), 190, y, { align: 'right' });
           y += 6;
         }
+        
         if (whatsappEnabled) {
+          y = checkPageBreak(10);
           doc.setTextColor(120, 120, 120);
           doc.text('WhatsApp Base Platform Fee:', 25, y);
           doc.setTextColor(40, 40, 40);
           doc.text(formatCurrency(630), 190, y, { align: 'right' });
           y += 6;
+          
+          y = checkPageBreak(10);
           doc.setTextColor(120, 120, 120);
           doc.text(`WhatsApp Per-Store Fee (${stores} stores):`, 25, y);
           doc.setTextColor(40, 40, 40);
           doc.text(formatCurrency(feeBreakdown.whatsapp.perStore), 190, y, { align: 'right' });
           y += 6;
+          
+          y = checkPageBreak(10);
           doc.setTextColor(120, 120, 120);
           doc.text(`WhatsApp Message Fees (${whatsappCountry}):`, 25, y);
           doc.setTextColor(40, 40, 40);
           doc.text(formatCurrency(feeBreakdown.whatsapp.messages), 190, y, { align: 'right' });
           y += 6;
         }
+        
         if (independentServer) {
+          y = checkPageBreak(10);
           doc.setTextColor(120, 120, 120);
           doc.text('Independent Server:', 25, y);
           doc.setTextColor(40, 40, 40);
           doc.text(formatCurrency(feeBreakdown.server), 190, y, { align: 'right' });
           y += 6;
         }
+        
         if (premiumSLA) {
+          y = checkPageBreak(10);
           doc.setTextColor(120, 120, 120);
           doc.text('Premium SLA:', 25, y);
           doc.setTextColor(40, 40, 40);
           doc.text(formatCurrency(feeBreakdown.sla), 190, y, { align: 'right' });
           y += 6;
         }
+        
         if (cms) {
+          y = checkPageBreak(10);
           doc.setTextColor(120, 120, 120);
           doc.text('Content Management System:', 25, y);
           doc.setTextColor(40, 40, 40);
           doc.text(formatCurrency(feeBreakdown.cms), 190, y, { align: 'right' });
           y += 6;
         }
+        
         if (appType !== 'none') {
+          y = checkPageBreak(10);
           doc.setTextColor(120, 120, 120);
           doc.text(`Mobile App (${appType}):`, 25, y);
           doc.setTextColor(40, 40, 40);
           doc.text(formatCurrency(feeBreakdown.app), 190, y, { align: 'right' });
           y += 6;
         }
+        
         if (premiumSupport) {
+          y = checkPageBreak(10);
           doc.setTextColor(120, 120, 120);
           doc.text('Premium Support:', 25, y);
           doc.setTextColor(40, 40, 40);
           doc.text(formatCurrency(feeBreakdown.support), 190, y, { align: 'right' });
           y += 6;
         }
+        
         if (dataIngestion) {
+          y = checkPageBreak(10);
           doc.setTextColor(120, 120, 120);
           doc.text('Data Ingestion:', 25, y);
           doc.setTextColor(40, 40, 40);
@@ -859,57 +936,91 @@ export default function SpoonityCalculator() {
           y += 6;
         }
       }
+      
+      // --- Setup Fee Breakdown ---
+      y = checkPageBreak(30);
+      y = addLine(20, y, 190);
+      y += 6;
+      
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(60, 60, 60);
+      doc.text('Setup Fee Breakdown:', 20, y);
+      doc.setFont('helvetica', 'normal');
+      y += 6;
+      
+      y = checkPageBreak(10);
+      doc.setTextColor(120, 120, 120);
+      doc.text('Onboarding (3 months of monthly fees):', 25, y);
+      doc.setTextColor(40, 40, 40);
+      doc.text(formatCurrency(feeBreakdown.setup.onboarding), 190, y, { align: 'right' });
+      y += 5;
+      
+      if (appType === 'premium') {
+        y = checkPageBreak(10);
+        doc.setTextColor(120, 120, 120);
+        doc.text('Premium App Setup:', 25, y);
+        doc.setTextColor(40, 40, 40);
+        doc.text(formatCurrency(15000), 190, y, { align: 'right' });
+        y += 5;
+      }
+      
+      if (appType === 'standard') {
+        y = checkPageBreak(10);
+        doc.setTextColor(120, 120, 120);
+        doc.text('Standard App Setup:', 25, y);
+        doc.setTextColor(40, 40, 40);
+        doc.text(formatCurrency(5000), 190, y, { align: 'right' });
+        y += 5;
+      }
+      
+      if (appType === 'pwa') {
+        y = checkPageBreak(10);
+        doc.setTextColor(120, 120, 120);
+        doc.text('PWA Setup:', 25, y);
+        doc.setTextColor(40, 40, 40);
+        doc.text(formatCurrency(1000), 190, y, { align: 'right' });
+        y += 5;
+      }
+      
+      if (dataIngestion) {
+        y = checkPageBreak(10);
+        doc.setTextColor(120, 120, 120);
+        doc.text('Data Ingestion Setup:', 25, y);
+        doc.setTextColor(40, 40, 40);
+        doc.text(formatCurrency(feeBreakdown.setup.dataIngestion), 190, y, { align: 'right' });
+        y += 5;
+      }
+      
       // --- Totals ---
-      y += 3;
-      doc.setDrawColor(230, 230, 230);
-      doc.line(20, y, 190, y);
+      y = checkPageBreak(30);
+      y = addLine(20, y, 190);
       y += 8;
+      
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(60, 60, 60);
       doc.text('Monthly Recurring Fees:', 20, y);
       doc.setTextColor(100, 12, 111); // #640C6F
       doc.text(formatCurrency(monthlyFees), 190, y, { align: 'right' });
       y += 7;
+      
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(120, 120, 120);
       doc.text('Setup Fees:', 20, y);
       doc.setTextColor(40, 40, 40);
       doc.text(formatCurrency(setupFees), 190, y, { align: 'right' });
       y += 7;
-      doc.setDrawColor(230, 230, 230);
-      doc.line(20, y, 190, y);
+      
+      y = addLine(20, y, 190);
       y += 8;
+      
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(60, 60, 60);
       doc.text('First Year Total:', 20, y);
       doc.setTextColor(100, 12, 111);
       doc.text(formatCurrency(monthlyFees * 12 + setupFees), 190, y, { align: 'right' });
-      // --- Setup Fee Breakdown ---
-      y += 10;
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(120, 120, 120);
-      doc.text('Setup fees include:', 20, y);
-      y += 6;
-      doc.setTextColor(40, 40, 40);
-      doc.text(`• Onboarding: ${formatCurrency(feeBreakdown.setup.onboarding)}`, 25, y);
-      if (appType === 'premium') {
-        y += 6;
-        doc.text(`• Premium App Setup: ${formatCurrency(15000)}`, 25, y);
-      }
-      if (appType === 'standard') {
-        y += 6;
-        doc.text(`• Standard App Setup: ${formatCurrency(5000)}`, 25, y);
-      }
-      if (appType === 'pwa') {
-        y += 6;
-        doc.text(`• PWA Setup: ${formatCurrency(1000)}`, 25, y);
-      }
-      if (dataIngestion) {
-        y += 6;
-        doc.text(`• Data Ingestion Setup: ${formatCurrency(feeBreakdown.setup.dataIngestion)}`, 25, y);
-      }
+      
       // --- Disclaimer (Gray Box) ---
-      y += 10;
+      y = checkPageBreak(30);
       doc.setFillColor(247, 247, 247);
       doc.roundedRect(15, y, 180, 18, 2, 2, 'F');
       doc.setTextColor(120, 120, 120);
@@ -917,6 +1028,7 @@ export default function SpoonityCalculator() {
       const disclaimer = 'This is an estimated quote based on the information provided. A Spoonity representative will contact you to provide a final quote and answer any questions. Pricing is subject to change based on specific requirements and contract terms.';
       const disclaimerLines = doc.splitTextToSize(disclaimer, 170);
       doc.text(disclaimerLines, 20, y + 7);
+      
       // --- Save ---
       const filename = `Spoonity_Quote_${firstName.replace(/\s+/g, '_')}_${lastName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
       doc.save(filename);
@@ -1163,14 +1275,14 @@ export default function SpoonityCalculator() {
 
   // Function to get transaction fee tier breakdown
   const getTransactionFeeBreakdown = (transactionVolume: number) => {
-    let rate = 0.5; // Default rate
+    let rate = 0.005; // Default rate
     let range = '0-5,000';
     
     if (transactionVolume > 50000) {
-      rate = 0.2;
+      rate = 0.002;
       range = '50,001+';
     } else if (transactionVolume > 5000) {
-      rate = 0.3;
+      rate = 0.003;
       range = '5,001-50,000';
     }
     
@@ -1792,141 +1904,215 @@ export default function SpoonityCalculator() {
             <div className="bg-white p-6">
               <div className="bg-gray-50 rounded-lg p-5 mb-6 border border-gray-200">
                 <h3 className="font-medium text-gray-900 mb-3">Your Pricing Summary</h3>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Plan:</span>
-                    <span className="font-medium">{planDetails[plan].name}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Base License Fee:</span>
-                    <span className="font-medium">{formatCurrency(planDetails[plan].base)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Connection Fees ({stores} stores):</span>
-                    <span className="font-medium">{formatCurrency(feeBreakdown.connection)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Transaction Processing:</span>
-                    <span className="font-medium">{formatCurrency(feeBreakdown.transaction)}</span>
-                  </div>
-                  {plan !== 'loyalty' && (
-                    <>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Marketing Platform:</span>
-                        <span className="font-medium">{formatCurrency(feeBreakdown.marketing)}</span>
+                <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div className="space-y-2 text-gray-500">
+                          <p>Base License Fee</p>
+                          <p>Connection Fees ({stores} stores)</p>
+                          <p>Transaction Processing</p>
+                          {plan !== 'loyalty' && <p>Marketing Emails</p>}
+                          {plan !== 'loyalty' && pushNotifications && <p>Push Notifications</p>}
+                        </div>
+                        <div className="space-y-2 text-right font-medium">
+                          <p>{formatCurrency(planDetails[plan].base)}</p>
+                          <p>{formatCurrency(feeBreakdown.connection)}</p>
+                          <p>{formatCurrency(feeBreakdown.transaction)}</p>
+                          {plan !== 'loyalty' && <p>{formatCurrency(feeBreakdown.marketing)}</p>}
+                          {plan !== 'loyalty' && pushNotifications && <p>{formatCurrency(marketing * 0.0045)}</p>}
+                        </div>
                       </div>
-                      {pushNotifications && (
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">Push Notifications:</span>
-                          <span className="font-medium">{formatCurrency(marketing * 0.0045)}</span>
+                      
+                      {/* Connection Fee Tier Breakdown */}
+                      <div className="bg-gray-50 rounded-lg p-4">
+                        <h4 className="font-medium mb-2 text-sm">Connection Fee Breakdown</h4>
+                        <div className="space-y-1 text-xs">
+                          {getConnectionFeeBreakdown(stores).map((tier, index) => (
+                            <div key={index} className="flex justify-between">
+                              <span className="text-gray-600">
+                                {tier.count} stores (Tier {tier.range} @ ${tier.price}/store):
+                              </span>
+                              <span className="font-medium">{formatCurrency(tier.total)}</span>
+                            </div>
+                          ))}
                         </div>
-                      )}
-                    </>
-                  )}
-                  
-                  {/* Add-ons Section */}
-                  {(giftCard || smsEnabled || whatsappEnabled || independentServer || premiumSLA || premiumSupport || cms || appType !== 'none' || dataIngestion) && (
-                    <div className="border-t pt-2 mt-2">
-                      <div className="font-medium mb-2">Add-on Services:</div>
-                      {giftCard && (
-                        <>
-                          <div className="flex justify-between text-sm pl-4">
-                            <span className="text-gray-600">Gift Card Base Fee:</span>
-                            <span className="font-medium">{formatCurrency(500)}</span>
+                      </div>
+                      
+                      {/* Transaction Processing Tier Breakdown */}
+                      <div className="bg-gray-50 rounded-lg p-4">
+                        <h4 className="font-medium mb-2 text-sm">Transaction Processing Breakdown</h4>
+                        <div className="space-y-1 text-xs">
+                          <div className="flex justify-between mb-1">
+                            <span className="text-gray-600">Total Volume: {Math.round(0.25 * (stores * transactions)).toLocaleString()} transactions</span>
                           </div>
-                          <div className="flex justify-between text-sm pl-4">
-                            <span className="text-gray-600">Gift Card Per-Store Fee ({stores} stores @ $30/store):</span>
-                            <span className="font-medium">{formatCurrency(stores * 30)}</span>
+                          {getTransactionFeeBreakdown(0.25 * (stores * transactions)).map((tier, index) => (
+                            <div key={index} className="flex justify-between">
+                              <span className="text-gray-600">
+                                {tier.volume.toLocaleString()} transactions (${tier.rate.toFixed(1)}/transaction):
+                              </span>
+                              <span className="font-medium">{formatCurrency(tier.total)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      
+                      {/* Marketing Email Tier Breakdown */}
+                      {plan !== 'loyalty' && (
+                        <div className="bg-gray-50 rounded-lg p-4">
+                          <h4 className="font-medium mb-2 text-sm">Marketing Email Breakdown</h4>
+                          <div className="space-y-1 text-xs">
+                            <div className="flex justify-between mb-1">
+                              <span className="text-gray-600">Total Emails: {marketing.toLocaleString()}</span>
+                            </div>
+                            {getMarketingEmailBreakdown(marketing).map((tier, index) => (
+                              <div key={index} className="flex justify-between">
+                                <span className="text-gray-600">
+                                  {tier.count.toLocaleString()} emails (${(tier.rate * 1000).toFixed(1)}/1K rate):
+                                </span>
+                                <span className="font-medium">{formatCurrency(tier.total)}</span>
+                              </div>
+                            ))}
                           </div>
-                        </>
-                      )}
-                      {smsEnabled && smsMessages && parseInt(smsMessages) > 0 && (
-                        <div className="flex justify-between text-sm pl-4">
-                          <span className="text-gray-600">SMS Platform ({smsCountry}):</span>
-                          <span className="font-medium">{formatCurrency(feeBreakdown.sms)}</span>
                         </div>
                       )}
-                      {whatsappEnabled && (
-                        <>
-                          <div className="flex justify-between text-sm pl-4">
-                            <span className="text-gray-600">WhatsApp Base Platform Fee:</span>
-                            <span className="font-medium">{formatCurrency(630)}</span>
+                      
+                      {/* Add-ons Section */}
+                      {(giftCard || smsEnabled || whatsappEnabled || independentServer || premiumSLA || 
+                      premiumSupport || cms || appType !== 'none' || dataIngestion) && (
+                        <div className="border-t pt-4 mt-4">
+                          <h4 className="font-medium mb-3">Add-on Services:</h4>
+                          <div className="grid grid-cols-2 gap-4 text-sm">
+                            <div className="space-y-2 text-gray-500">
+                              {giftCard && (
+                                <>
+                                  <p>Gift Card Base Fee</p>
+                                  <p>Gift Card Per-Store Fee ({stores} stores @ $30/store)</p>
+                                </>
+                              )}
+                              {smsEnabled && smsMessages && parseInt(smsMessages) > 0 && <p>SMS Messages ({smsMessages})</p>}
+                              {whatsappEnabled && (
+                                <>
+                                  <p>WhatsApp Base Platform Fee</p>
+                                  <p>WhatsApp Per-Store Fee ({stores} stores)</p>
+                                  <p className="pl-4">• Digital Receipts ({whatsappMarketTicket.toLocaleString()} messages)</p>
+                                  <p className="pl-4">• Utility Messages ({whatsappUtility.toLocaleString()} messages)</p>
+                                  <p className="pl-4">• Marketing Messages ({whatsappMarketing.toLocaleString()} messages)</p>
+                                  <p className="pl-4">• OTP Messages ({whatsappOtp.toLocaleString()} messages)</p>
+                                </>
+                              )}
+                              {independentServer && <p>Independent Server</p>}
+                              {premiumSLA && <p>Premium SLA</p>}
+                              {cms && <p>Content Management System</p>}
+                              {appType === 'premium' && <p>Premium App Subscription</p>}
+                              {appType === 'standard' && <p>Standard App Subscription</p>}
+                              {appType === 'pwa' && <p>PWA Subscription</p>}
+                              {premiumSupport && <p>Premium Support</p>}
+                              {dataIngestion && <p>Data Ingestion</p>}
+                            </div>
+                            <div className="space-y-2 text-right font-medium">
+                              {giftCard && (
+                                <>
+                                  <p>{formatCurrency(500)}</p>
+                                  <p>{formatCurrency(stores * 30)}</p>
+                                </>
+                              )}
+                              {smsMessages && parseInt(smsMessages) > 0 && <p>{formatCurrency(feeBreakdown.sms)}</p>}
+                              {whatsappEnabled && (
+                                <>
+                                  <p>{formatCurrency(630)}</p>
+                                  <p>{formatCurrency(feeBreakdown.whatsapp.perStore)}</p>
+                                  <p className="pr-4">{formatCurrency(whatsappMarketTicket * whatsappRates[whatsappCountry].marketTicket)}</p>
+                                  <p className="pr-4">{formatCurrency(whatsappUtility * whatsappRates[whatsappCountry].utility)}</p>
+                                  <p className="pr-4">{formatCurrency(whatsappMarketing * whatsappRates[whatsappCountry].marketing)}</p>
+                                  <p className="pr-4">{formatCurrency(whatsappOtp * whatsappRates[whatsappCountry].otp)}</p>
+                                </>
+                              )}
+                              {independentServer && <p>{formatCurrency(feeBreakdown.server)}</p>}
+                              {premiumSLA && <p>{formatCurrency(feeBreakdown.sla)}</p>}
+                              {cms && <p>{formatCurrency(feeBreakdown.cms)}</p>}
+                              {appType === 'premium' && <p>{formatCurrency(feeBreakdown.app)}</p>}
+                              {appType === 'standard' && <p>{formatCurrency(feeBreakdown.app)}</p>}
+                              {appType === 'pwa' && <p>{formatCurrency(feeBreakdown.app)}</p>}
+                              {premiumSupport && <p>{formatCurrency(feeBreakdown.support)}</p>}
+                              {dataIngestion && <p>{formatCurrency((monthlyFees - (premiumSupport ? 2000 + (monthlyFees * 0.1) : 0)) * 0.2)}</p>}
+                            </div>
                           </div>
-                          <div className="flex justify-between text-sm pl-4">
-                            <span className="text-gray-600">WhatsApp Per-Store Fee ({stores} stores):</span>
-                            <span className="font-medium">{formatCurrency(feeBreakdown.whatsapp.perStore)}</span>
+                          
+                          {/* {whatsappEnabled && (
+                            <div className="mt-3 text-xs bg-gray-50 p-3 rounded-md">
+                              <div className="font-medium mb-1">WhatsApp Message Breakdown:</div>
+                              <div className="grid grid-cols-2 gap-1">
+                                <span className="pl-2">• Digital Receipts ({whatsappMarketTicket.toLocaleString()} × ${whatsappRates[whatsappCountry].marketTicket.toFixed(4)}):</span>
+                                <span className="text-right">{formatCurrency(whatsappMarketTicket * whatsappRates[whatsappCountry].marketTicket)}</span>
+                                
+                                <span className="pl-2">• Utility Messages ({whatsappUtility.toLocaleString()} × ${whatsappRates[whatsappCountry].utility.toFixed(2)}):</span>
+                                <span className="text-right">{formatCurrency(whatsappUtility * whatsappRates[whatsappCountry].utility)}</span>
+                                
+                                <span className="pl-2">• Marketing Messages ({whatsappMarketing.toLocaleString()} × ${whatsappRates[whatsappCountry].marketing.toFixed(2)}):</span>
+                                <span className="text-right">{formatCurrency(whatsappMarketing * whatsappRates[whatsappCountry].marketing)}</span>
+                                
+                                <span className="pl-2">• OTP Messages ({whatsappOtp.toLocaleString()} × ${whatsappRates[whatsappCountry].otp.toFixed(2)}):</span>
+                                <span className="text-right">{formatCurrency(whatsappOtp * whatsappRates[whatsappCountry].otp)}</span>
+                                
+                                <span className="font-medium pt-1 border-t mt-1">Total Message Fees:</span>
+                                <span className="text-right font-medium pt-1 border-t mt-1">{formatCurrency(feeBreakdown.whatsapp.messages)}</span>
+                              </div>
+                            </div>
+                          )} */}
+                        </div>
+                      )}
+                      
+                      {/* Setup Fee Breakdown */}
+                      <div className="bg-gray-50 rounded-lg p-4">
+                        <h4 className="font-medium mb-2 text-sm">Setup Fee Breakdown</h4>
+                        <div className="space-y-1 text-xs">
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Onboarding (3 months of monthly fees):</span>
+                            <span className="font-medium">{formatCurrency(feeBreakdown.setup.onboarding)}</span>
                           </div>
-                          <div className="flex justify-between text-sm pl-4">
-                            <span className="text-gray-600">WhatsApp Message Fees ({whatsappCountry}):</span>
-                            <span className="font-medium">{formatCurrency(feeBreakdown.whatsapp.messages)}</span>
-                          </div>
-                        </>
-                      )}
-                      {independentServer && (
-                        <div className="flex justify-between text-sm pl-4">
-                          <span className="text-gray-600">Independent Server:</span>
-                          <span className="font-medium">{formatCurrency(feeBreakdown.server)}</span>
+                          {appType === 'premium' && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Premium App Setup:</span>
+                              <span className="font-medium">{formatCurrency(15000)}</span>
+                            </div>
+                          )}
+                          {appType === 'standard' && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Standard App Setup:</span>
+                              <span className="font-medium">{formatCurrency(5000)}</span>
+                            </div>
+                          )}
+                          {appType === 'pwa' && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">PWA Setup:</span>
+                              <span className="font-medium">{formatCurrency(1000)}</span>
+                            </div>
+                          )}
+                          {dataIngestion && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Data Ingestion Setup:</span>
+                              <span className="font-medium">{formatCurrency(feeBreakdown.setup.dataIngestion)}</span>
+                            </div>
+                          )}
                         </div>
-                      )}
-                      {premiumSLA && (
-                        <div className="flex justify-between text-sm pl-4">
-                          <span className="text-gray-600">Premium SLA:</span>
-                          <span className="font-medium">{formatCurrency(feeBreakdown.sla)}</span>
-                        </div>
-                      )}
-                      {cms && (
-                        <div className="flex justify-between text-sm pl-4">
-                          <span className="text-gray-600">Content Management System:</span>
-                          <span className="font-medium">{formatCurrency(feeBreakdown.cms)}</span>
-                        </div>
-                      )}
-                      {appType !== 'none' && (
-                        <div className="flex justify-between text-sm pl-4">
-                          <span className="text-gray-600">Mobile App ({appType}):</span>
-                          <span className="font-medium">{formatCurrency(feeBreakdown.app)}</span>
-                        </div>
-                      )}
-                      {premiumSupport && (
-                        <div className="flex justify-between text-sm pl-4">
-                          <span className="text-gray-600">Premium Support:</span>
-                          <span className="font-medium">{formatCurrency(feeBreakdown.support)}</span>
-                        </div>
-                      )}
-                      {dataIngestion && (
-                        <div className="flex justify-between text-sm pl-4">
-                          <span className="text-gray-600">Data Ingestion:</span>
-                          <span className="font-medium">{formatCurrency((monthlyFees - (premiumSupport ? 2000 + (monthlyFees * 0.1) : 0)) * 0.2)}</span>
-                        </div>
-                      )}
+                      </div>
+                      
+                      <div className="border-t pt-2 mt-2 flex justify-between font-medium">
+                        <span>Monthly Recurring Fees:</span>
+                        <span className="spoonity-primary-text">{formatCurrency(monthlyFees)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Setup Fees:</span>
+                        <span className="font-medium">{formatCurrency(setupFees)}</span>
+                      </div>
+                      <div className="border-t pt-2 mt-2 flex justify-between font-medium">
+                        <span>First Year Total:</span>
+                        <span className="spoonity-primary-text">{formatCurrency(monthlyFees * 12 + setupFees)}</span>
+                      </div>
                     </div>
-                  )}
-                  
-                  <div className="border-t pt-2 mt-2 flex justify-between font-medium">
-                    <span>Monthly Recurring Fees:</span>
-                    <span className="spoonity-primary-text">{formatCurrency(monthlyFees)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Setup Fees:</span>
-                    <span className="font-medium">{formatCurrency(setupFees)}</span>
-                  </div>
-                  <div className="border-t pt-2 mt-2 flex justify-between font-medium">
-                    <span>First Year Total:</span>
-                    <span className="spoonity-primary-text">{formatCurrency(monthlyFees * 12 + setupFees)}</span>
-                  </div>
-                </div>
               </div>
               
               <div className="text-center">
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  <button
-                    onClick={() => {
-                      const quoteText = displayQuoteDetails();
-                      alert("Please copy the text below for your records:\n\n" + quoteText);
-                    }}
-                    className="spoonity-cta text-white px-4 py-2.5 rounded-md font-medium transition-colors duration-200"
-                  >
-                    View Detailed Quote
-                  </button>
                   <button
                     onClick={() => generatePDFWithLoading()}
                     disabled={!jsPdfLoaded || isPdfGenerating}
@@ -2873,6 +3059,41 @@ export default function SpoonityCalculator() {
                           )} */}
                         </div>
                       )}
+                      
+                      {/* Setup Fee Breakdown */}
+                      <div className="bg-gray-50 rounded-lg p-4">
+                        <h4 className="font-medium mb-2 text-sm">Setup Fee Breakdown</h4>
+                        <div className="space-y-1 text-xs">
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Onboarding (3 months of monthly fees):</span>
+                            <span className="font-medium">{formatCurrency(feeBreakdown.setup.onboarding)}</span>
+                          </div>
+                          {appType === 'premium' && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Premium App Setup:</span>
+                              <span className="font-medium">{formatCurrency(15000)}</span>
+                            </div>
+                          )}
+                          {appType === 'standard' && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Standard App Setup:</span>
+                              <span className="font-medium">{formatCurrency(5000)}</span>
+                            </div>
+                          )}
+                          {appType === 'pwa' && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">PWA Setup:</span>
+                              <span className="font-medium">{formatCurrency(1000)}</span>
+                            </div>
+                          )}
+                          {dataIngestion && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Data Ingestion Setup:</span>
+                              <span className="font-medium">{formatCurrency(feeBreakdown.setup.dataIngestion)}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
                       
                       <div className="border-t pt-2 mt-2 flex justify-between font-medium">
                         <span>Monthly Recurring Fees:</span>
