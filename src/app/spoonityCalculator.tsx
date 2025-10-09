@@ -73,7 +73,7 @@ export default function SpoonityCalculator() {
   const [subtotalDiscount, setSubtotalDiscount] = React.useState<{
     type: "percentage" | "fixed";
     value: number;
-  }>({ type: "percentage", value: 0 });
+  }>({ type: "fixed", value: 0 });
   const [discountReason, setDiscountReason] = React.useState("");
   const [itemDiscounts, setItemDiscounts] = React.useState<
     Record<string, { type: "percentage" | "fixed"; value: number }>
@@ -228,6 +228,20 @@ export default function SpoonityCalculator() {
     discount: 0,
     itemDiscounts: 0,
     subtotalDiscountAmount: 0,
+    net: {
+      baseLicense: 0,
+      connection: 0,
+      transaction: 0,
+      marketing: 0,
+      giftCard: 0,
+      sms: 0,
+      whatsapp: 0,
+      server: 0,
+      sla: 0,
+      cms: 0,
+      app: 0,
+      support: 0,
+    },
     corporate: 0,
     franchisee: 0,
     franchiseePerStore: 0,
@@ -2378,31 +2392,43 @@ export default function SpoonityCalculator() {
     };
 
     // compute discounts on current components
+    const dBase = getItemDiscount("baseLicense", planDetails[plan].base);
+    const dConn = getItemDiscount("connection", connectionFees);
+    const dTxn = getItemDiscount("transaction", transactionFees);
+    const dMkt = getItemDiscount("marketing", marketingFees);
+    const dGift = getItemDiscount("giftCard", giftCardFees);
+    const dSms = getItemDiscount("sms", smsFees);
+    const dWa = getItemDiscount("whatsapp", whatsappTotalFee);
+    const dSrv = getItemDiscount("server", serverFees);
+    const dSla = getItemDiscount("sla", slaFees);
+    const dCms = getItemDiscount("cms", cmsFees);
+    const dApp = getItemDiscount("app", appFees);
+
     if (discountUnlocked) {
-      totalItemDiscounts += getItemDiscount(
-        "baseLicense",
-        planDetails[plan].base
-      );
-      totalItemDiscounts += getItemDiscount("connection", connectionFees);
-      totalItemDiscounts += getItemDiscount("transaction", transactionFees);
-      totalItemDiscounts += getItemDiscount("marketing", marketingFees);
-      totalItemDiscounts += getItemDiscount("giftCard", giftCardFees);
-      totalItemDiscounts += getItemDiscount("sms", smsFees);
-      totalItemDiscounts += getItemDiscount("whatsapp", whatsappTotalFee);
-      totalItemDiscounts += getItemDiscount("server", serverFees);
-      totalItemDiscounts += getItemDiscount("sla", slaFees);
-      totalItemDiscounts += getItemDiscount("cms", cmsFees);
-      totalItemDiscounts += getItemDiscount("app", appFees);
+      totalItemDiscounts +=
+        dBase +
+        dConn +
+        dTxn +
+        dMkt +
+        dGift +
+        dSms +
+        dWa +
+        dSrv +
+        dSla +
+        dCms +
+        dApp;
       monthly = Math.max(0, monthly - totalItemDiscounts);
     }
 
     // Premium support is calculated after all other monthly fees
     let totalBeforeSupport = monthly;
     let supportFees = 0;
+    let supportDiscountApplied = 0;
     if (premiumSupport) {
       supportFees = 2000 + totalBeforeSupport * 0.1;
       if (discountUnlocked) {
         const supportDiscount = getItemDiscount("support", supportFees);
+        supportDiscountApplied = supportDiscount;
         supportFees = Math.max(0, supportFees - supportDiscount);
         totalItemDiscounts += supportDiscount;
       }
@@ -2491,6 +2517,20 @@ export default function SpoonityCalculator() {
       discount: totalItemDiscounts + subtotalDiscountAmount,
       itemDiscounts: totalItemDiscounts,
       subtotalDiscountAmount: subtotalDiscountAmount,
+      net: {
+        baseLicense: Math.max(0, planDetails[plan].base - dBase),
+        connection: Math.max(0, connectionFees - dConn),
+        transaction: Math.max(0, transactionFees - dTxn),
+        marketing: Math.max(0, marketingFees - dMkt),
+        giftCard: Math.max(0, giftCardFees - dGift),
+        sms: Math.max(0, smsFees - dSms),
+        whatsapp: Math.max(0, whatsappTotalFee - dWa),
+        server: Math.max(0, serverFees - dSrv),
+        sla: Math.max(0, slaFees - dSla),
+        cms: Math.max(0, cmsFees - dCms),
+        app: Math.max(0, appFees - dApp),
+        support: Math.max(0, supportFees - supportDiscountApplied),
+      },
       corporate: corporateFees,
       franchisee: franchiseeFees,
       franchiseePerStore: franchiseePerStore,
@@ -2629,6 +2669,20 @@ export default function SpoonityCalculator() {
       discount: 0,
       itemDiscounts: 0,
       subtotalDiscountAmount: 0,
+      net: {
+        baseLicense: 0,
+        connection: 0,
+        transaction: 0,
+        marketing: 0,
+        giftCard: 0,
+        sms: 0,
+        whatsapp: 0,
+        server: 0,
+        sla: 0,
+        cms: 0,
+        app: 0,
+        support: 0,
+      },
       corporate: 0,
       franchisee: 0,
       franchiseePerStore: 0,
@@ -4465,11 +4519,31 @@ export default function SpoonityCalculator() {
                           )}
                         </div>
                         <div className="space-y-2 text-right font-medium">
-                          <p>{formatCurrency(planDetails[plan].base)}</p>
-                          <p>{formatCurrency(feeBreakdown.connection)}</p>
-                          <p>{formatCurrency(feeBreakdown.transaction)}</p>
+                          <p>
+                            {formatCurrency(
+                              feeBreakdown.net.baseLicense ||
+                                planDetails[plan].base
+                            )}
+                          </p>
+                          <p>
+                            {formatCurrency(
+                              feeBreakdown.net.connection ||
+                                feeBreakdown.connection
+                            )}
+                          </p>
+                          <p>
+                            {formatCurrency(
+                              feeBreakdown.net.transaction ||
+                                feeBreakdown.transaction
+                            )}
+                          </p>
                           {plan !== "loyalty" && (
-                            <p>{formatCurrency(feeBreakdown.marketing)}</p>
+                            <p>
+                              {formatCurrency(
+                                feeBreakdown.net.marketing ||
+                                  feeBreakdown.marketing
+                              )}
+                            </p>
                           )}
                           {plan !== "loyalty" && pushNotifications && (
                             <p>{formatCurrency(marketing * 0.0045)}</p>
@@ -4788,6 +4862,24 @@ export default function SpoonityCalculator() {
                         </div>
                       </div>
 
+                      <div className="border-t pt-2 mt-2 flex justify-between text-sm">
+                        <span className="text-gray-600">
+                          Subtotal (before discounts):
+                        </span>
+                        <span className="font-medium">
+                          {formatCurrency(feeBreakdown.subtotal)}
+                        </span>
+                      </div>
+                      {(feeBreakdown.discount || 0) > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600">
+                            Discounts Applied:
+                          </span>
+                          <span className="font-medium text-green-700">
+                            - {formatCurrency(feeBreakdown.discount)}
+                          </span>
+                        </div>
+                      )}
                       <div className="border-t pt-2 mt-2 flex justify-between font-medium">
                         <span>Monthly Recurring Fees:</span>
                         <span className="spoonity-primary-text">
@@ -5067,10 +5159,9 @@ export default function SpoonityCalculator() {
                                   <select
                                     className="border rounded-md p-1.5 input-field text-xs"
                                     value={
-                                      itemDiscounts.baseLicense?.type ||
-                                      "percentage"
+                                      itemDiscounts.baseLicense?.type || "fixed"
                                     }
-                                    onChange={(e) =>
+                                    onChange={(e) => {
                                       setItemDiscounts({
                                         ...itemDiscounts,
                                         baseLicense: {
@@ -5079,8 +5170,8 @@ export default function SpoonityCalculator() {
                                             itemDiscounts.baseLicense?.value ||
                                             0,
                                         },
-                                      })
-                                    }
+                                      });
+                                    }}
                                   >
                                     <option value="percentage">%</option>
                                     <option value="fixed">$</option>
@@ -5088,23 +5179,23 @@ export default function SpoonityCalculator() {
                                   <input
                                     type="number"
                                     min={0}
-                                    step={0.01}
+                                    // step={0.01}
                                     className="col-span-2 border rounded-md p-1.5 input-field text-xs"
                                     placeholder="0.00"
                                     value={
                                       itemDiscounts.baseLicense?.value ?? 0
                                     }
-                                    onChange={(e) =>
+                                    onChange={(e) => {
                                       setItemDiscounts({
                                         ...itemDiscounts,
                                         baseLicense: {
                                           type:
                                             itemDiscounts.baseLicense?.type ||
-                                            "percentage",
+                                            "fixed",
                                           value: Number(e.target.value),
                                         },
-                                      })
-                                    }
+                                      });
+                                    }}
                                   />
                                 </div>
                               </div>
@@ -5123,8 +5214,7 @@ export default function SpoonityCalculator() {
                                   <select
                                     className="border rounded-md p-1.5 input-field text-xs"
                                     value={
-                                      itemDiscounts.connection?.type ||
-                                      "percentage"
+                                      itemDiscounts.connection?.type || "fixed"
                                     }
                                     onChange={(e) =>
                                       setItemDiscounts({
@@ -5154,7 +5244,7 @@ export default function SpoonityCalculator() {
                                         connection: {
                                           type:
                                             itemDiscounts.connection?.type ||
-                                            "percentage",
+                                            "fixed",
                                           value: Number(e.target.value),
                                         },
                                       })
@@ -5177,8 +5267,7 @@ export default function SpoonityCalculator() {
                                   <select
                                     className="border rounded-md p-1.5 input-field text-xs"
                                     value={
-                                      itemDiscounts.transaction?.type ||
-                                      "percentage"
+                                      itemDiscounts.transaction?.type || "fixed"
                                     }
                                     onChange={(e) =>
                                       setItemDiscounts({
@@ -5210,7 +5299,7 @@ export default function SpoonityCalculator() {
                                         transaction: {
                                           type:
                                             itemDiscounts.transaction?.type ||
-                                            "percentage",
+                                            "fixed",
                                           value: Number(e.target.value),
                                         },
                                       })
@@ -5338,9 +5427,7 @@ export default function SpoonityCalculator() {
                                 <div className="grid grid-cols-3 gap-2">
                                   <select
                                     className="border rounded-md p-1.5 input-field text-xs"
-                                    value={
-                                      itemDiscounts.sms?.type || "percentage"
-                                    }
+                                    value={itemDiscounts.sms?.type || "fixed"}
                                     onChange={(e) =>
                                       setItemDiscounts({
                                         ...itemDiscounts,
@@ -5366,8 +5453,7 @@ export default function SpoonityCalculator() {
                                         ...itemDiscounts,
                                         sms: {
                                           type:
-                                            itemDiscounts.sms?.type ||
-                                            "percentage",
+                                            itemDiscounts.sms?.type || "fixed",
                                           value: Number(e.target.value),
                                         },
                                       })
@@ -5392,8 +5478,7 @@ export default function SpoonityCalculator() {
                                   <select
                                     className="border rounded-md p-1.5 input-field text-xs"
                                     value={
-                                      itemDiscounts.whatsapp?.type ||
-                                      "percentage"
+                                      itemDiscounts.whatsapp?.type || "fixed"
                                     }
                                     onChange={(e) =>
                                       setItemDiscounts({
@@ -5422,7 +5507,7 @@ export default function SpoonityCalculator() {
                                         whatsapp: {
                                           type:
                                             itemDiscounts.whatsapp?.type ||
-                                            "percentage",
+                                            "fixed",
                                           value: Number(e.target.value),
                                         },
                                       })
@@ -5445,7 +5530,7 @@ export default function SpoonityCalculator() {
                                   <select
                                     className="border rounded-md p-1.5 input-field text-xs"
                                     value={
-                                      itemDiscounts.server?.type || "percentage"
+                                      itemDiscounts.server?.type || "fixed"
                                     }
                                     onChange={(e) =>
                                       setItemDiscounts({
@@ -5474,7 +5559,7 @@ export default function SpoonityCalculator() {
                                         server: {
                                           type:
                                             itemDiscounts.server?.type ||
-                                            "percentage",
+                                            "fixed",
                                           value: Number(e.target.value),
                                         },
                                       })
@@ -5496,9 +5581,7 @@ export default function SpoonityCalculator() {
                                 <div className="grid grid-cols-3 gap-2">
                                   <select
                                     className="border rounded-md p-1.5 input-field text-xs"
-                                    value={
-                                      itemDiscounts.sla?.type || "percentage"
-                                    }
+                                    value={itemDiscounts.sla?.type || "fixed"}
                                     onChange={(e) =>
                                       setItemDiscounts({
                                         ...itemDiscounts,
@@ -5524,8 +5607,7 @@ export default function SpoonityCalculator() {
                                         ...itemDiscounts,
                                         sla: {
                                           type:
-                                            itemDiscounts.sla?.type ||
-                                            "percentage",
+                                            itemDiscounts.sla?.type || "fixed",
                                           value: Number(e.target.value),
                                         },
                                       })
@@ -5547,9 +5629,7 @@ export default function SpoonityCalculator() {
                                 <div className="grid grid-cols-3 gap-2">
                                   <select
                                     className="border rounded-md p-1.5 input-field text-xs"
-                                    value={
-                                      itemDiscounts.cms?.type || "percentage"
-                                    }
+                                    value={itemDiscounts.cms?.type || "fixed"}
                                     onChange={(e) =>
                                       setItemDiscounts({
                                         ...itemDiscounts,
@@ -5575,8 +5655,7 @@ export default function SpoonityCalculator() {
                                         ...itemDiscounts,
                                         cms: {
                                           type:
-                                            itemDiscounts.cms?.type ||
-                                            "percentage",
+                                            itemDiscounts.cms?.type || "fixed",
                                           value: Number(e.target.value),
                                         },
                                       })
@@ -5598,9 +5677,7 @@ export default function SpoonityCalculator() {
                                 <div className="grid grid-cols-3 gap-2">
                                   <select
                                     className="border rounded-md p-1.5 input-field text-xs"
-                                    value={
-                                      itemDiscounts.app?.type || "percentage"
-                                    }
+                                    value={itemDiscounts.app?.type || "fixed"}
                                     onChange={(e) =>
                                       setItemDiscounts({
                                         ...itemDiscounts,
@@ -5626,8 +5703,7 @@ export default function SpoonityCalculator() {
                                         ...itemDiscounts,
                                         app: {
                                           type:
-                                            itemDiscounts.app?.type ||
-                                            "percentage",
+                                            itemDiscounts.app?.type || "fixed",
                                           value: Number(e.target.value),
                                         },
                                       })
@@ -5650,8 +5726,7 @@ export default function SpoonityCalculator() {
                                   <select
                                     className="border rounded-md p-1.5 input-field text-xs"
                                     value={
-                                      itemDiscounts.support?.type ||
-                                      "percentage"
+                                      itemDiscounts.support?.type || "fixed"
                                     }
                                     onChange={(e) =>
                                       setItemDiscounts({
@@ -5680,7 +5755,7 @@ export default function SpoonityCalculator() {
                                         support: {
                                           type:
                                             itemDiscounts.support?.type ||
-                                            "percentage",
+                                            "fixed",
                                           value: Number(e.target.value),
                                         },
                                       })
