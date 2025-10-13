@@ -79,6 +79,16 @@ export default function SpoonityCalculator() {
     Record<string, { type: "percentage" | "fixed"; value: number }>
   >({});
   const [showItemDiscounts, setShowItemDiscounts] = React.useState(false);
+  // Apply/Clear workflow state
+  const [discountsApplied, setDiscountsApplied] = React.useState(false);
+  const [appliedItemDiscounts, setAppliedItemDiscounts] = React.useState<
+    Record<string, { type: "percentage" | "fixed"; value: number }>
+  >({});
+  const [appliedSubtotalDiscount, setAppliedSubtotalDiscount] = React.useState<{
+    type: "percentage" | "fixed";
+    value: number;
+  }>({ type: "fixed", value: 0 });
+  const [appliedDiscountReason, setAppliedDiscountReason] = React.useState("");
 
   // WhatsApp specific state
   const [whatsappEnabled, setWhatsappEnabled] = React.useState(false);
@@ -2104,10 +2114,11 @@ export default function SpoonityCalculator() {
     whatsappUtility,
     whatsappMarketing,
     whatsappOtp,
-    // Discounts
+    // Discounts (recalc only when applied or being cleared)
     discountUnlocked,
-    subtotalDiscount,
-    itemDiscounts,
+    discountsApplied,
+    appliedSubtotalDiscount,
+    appliedItemDiscounts,
   ]);
 
   // Calculate default SMS message count when stores or transactions change
@@ -2385,7 +2396,8 @@ export default function SpoonityCalculator() {
     let totalItemDiscounts = 0;
     const getItemDiscount = (key: string, amount: number) => {
       if (!discountUnlocked) return 0;
-      const d = itemDiscounts[key];
+      const source = discountsApplied ? appliedItemDiscounts : itemDiscounts;
+      const d = source[key];
       if (!d) return 0;
       if (d.type === "percentage") return amount * (d.value / 100);
       return Math.min(d.value, amount);
@@ -2441,11 +2453,11 @@ export default function SpoonityCalculator() {
     // Apply subtotal discount if unlocked
     let subtotalDiscountAmount = 0;
     if (discountUnlocked) {
-      if (subtotalDiscount.type === "percentage") {
-        subtotalDiscountAmount =
-          monthlySubtotal * ((subtotalDiscount.value || 0) / 100);
+      const sd = discountsApplied ? appliedSubtotalDiscount : subtotalDiscount;
+      if (sd.type === "percentage") {
+        subtotalDiscountAmount = monthlySubtotal * ((sd.value || 0) / 100);
       } else {
-        subtotalDiscountAmount = subtotalDiscount.value || 0;
+        subtotalDiscountAmount = sd.value || 0;
       }
       monthly = Math.max(0, monthly - subtotalDiscountAmount);
     }
@@ -3298,6 +3310,46 @@ export default function SpoonityCalculator() {
                           <span className="font-medium">
                             {formatCurrency(15000)}
                           </span>
+                          <div className="flex gap-2 pt-2">
+                            <button
+                              type="button"
+                              className={`px-3 py-2 rounded-md text-sm font-medium text-white ${"bg-blue-600 hover:bg-blue-700"}`}
+                              // disabled={discountsApplied}
+                              onClick={() => {
+                                setAppliedItemDiscounts(itemDiscounts);
+                                setAppliedSubtotalDiscount(subtotalDiscount);
+                                setAppliedDiscountReason(discountReason);
+                                setDiscountsApplied(true);
+                              }}
+                            >
+                              Apply Discounts
+                            </button>
+                            <button
+                              type="button"
+                              className={`px-3 py-2 rounded-md text-sm font-medium ${
+                                discountsApplied
+                                  ? "bg-red-600 text-white hover:bg-red-700"
+                                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                              }`}
+                              onClick={() => {
+                                setItemDiscounts({});
+                                setSubtotalDiscount({
+                                  type: "fixed",
+                                  value: 0,
+                                });
+                                setDiscountReason("");
+                                setAppliedItemDiscounts({});
+                                setAppliedSubtotalDiscount({
+                                  type: "fixed",
+                                  value: 0,
+                                });
+                                setAppliedDiscountReason("");
+                                setDiscountsApplied(false);
+                              }}
+                            >
+                              Clear Discounts
+                            </button>
+                          </div>
                         </div>
                       )}
                       {appType === "standard" && (
@@ -4867,7 +4919,9 @@ export default function SpoonityCalculator() {
                           Subtotal (before discounts):
                         </span>
                         <span className="font-medium">
-                          {formatCurrency(feeBreakdown.subtotal)}
+                          {formatCurrency(
+                            (monthlyFees || 0) + (feeBreakdown.discount || 0)
+                          )}
                         </span>
                       </div>
                       {(feeBreakdown.discount || 0) > 0 && (
@@ -5780,6 +5834,47 @@ export default function SpoonityCalculator() {
                       )}
                     </div>
                   )}
+                  <div className="flex gap-2 pt-2">
+                    <button
+                      type="button"
+                      className={`px-3 py-2 rounded-md text-sm font-medium text-white ${"bg-blue-600 hover:bg-blue-700"}`}
+                      // disabled={discountsApplied}
+                      onClick={() => {
+                        setAppliedItemDiscounts(itemDiscounts);
+                        setAppliedSubtotalDiscount(subtotalDiscount);
+                        setAppliedDiscountReason(discountReason);
+                        setDiscountsApplied(true);
+                      }}
+                    >
+                      Apply Discounts
+                    </button>
+                    <button
+                      type="button"
+                      className={`px-3 py-2 rounded-md text-sm font-medium ${
+                        discountsApplied
+                          ? "bg-red-600 text-white hover:bg-red-700"
+                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      }`}
+                      onClick={() => {
+                        // Clear current and applied discounts
+                        setItemDiscounts({});
+                        setSubtotalDiscount({
+                          type: "fixed",
+                          value: 0,
+                        });
+                        setDiscountReason("");
+                        setAppliedItemDiscounts({});
+                        setAppliedSubtotalDiscount({
+                          type: "fixed",
+                          value: 0,
+                        });
+                        setAppliedDiscountReason("");
+                        setDiscountsApplied(false);
+                      }}
+                    >
+                      Clear Discounts
+                    </button>
+                  </div>
                 </div>
 
                 <div className="mt-8">
@@ -5846,9 +5941,25 @@ export default function SpoonityCalculator() {
               </div>
               <div className="flex flex-col">
                 <span className="text-sm text-gray-500">Monthly:</span>
-                <span className="text-xl font-bold spoonity-primary-text">
-                  {formatCurrency(monthlyFees)}
-                </span>
+                {discountsApplied && (feeBreakdown.discount || 0) > 0 ? (
+                  <div className="flex items-baseline gap-2 sm:gap-3 justify-end">
+                    <span className="text-xs text-gray-600 whitespace-nowrap">
+                      Before:{" "}
+                      <span className="line-through text-gray-400">
+                        {formatCurrency(
+                          (monthlyFees || 0) + (feeBreakdown.discount || 0)
+                        )}
+                      </span>
+                    </span>
+                    <span className="text-base sm:text-xl font-bold spoonity-primary-text whitespace-nowrap">
+                      After: {formatCurrency(monthlyFees)}
+                    </span>
+                  </div>
+                ) : (
+                  <span className="text-xl font-bold spoonity-primary-text">
+                    {formatCurrency(monthlyFees)}
+                  </span>
+                )}
               </div>
             </div>
           </div>
