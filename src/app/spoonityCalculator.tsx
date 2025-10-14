@@ -298,7 +298,7 @@ export default function SpoonityCalculator() {
       name: "Spoonity Marketing",
       description: "Includes Loyalty + Marketing features",
       fullDescription:
-        "The Spoonity Marketing plan includes all Loyalty features plus comprehensive marketing capabilities. It starts with a base license fee of $1,500/month plus per-store connection fees. Marketing emails are charged at tiered rates: $0.0006/email for first 100,000, $0.0004/email for 100,001-1,000,000, and $0.0002/email for over 1 million. Push notifications can be added for $0.0045 per push.",
+        "The Spoonity Marketing plan includes all Loyalty features plus comprehensive marketing capabilities. It starts with a base license fee of $1,500/month plus per-store connection fees. Marketing emails use a licensed-based model with committed volume pricing: $500 base fee plus tier-based costs ranging from $0 for up to 10,000 emails to $21,516 for up to 10 million emails. Push notifications can be added for $0.0045 per push.",
     },
     intelligence: {
       base: 3000,
@@ -989,18 +989,24 @@ export default function SpoonityCalculator() {
         y += 5;
 
         getMarketingEmailBreakdown(marketing).forEach((tier) => {
-          y = checkPageBreak(10);
+          y = checkPageBreak(15);
           doc.setTextColor(120, 120, 120);
+          doc.text(`${tier.tierName}: ${tier.range}`, 25, y);
+          y += 5;
           doc.text(
-            `${tier.count.toLocaleString()} emails ($${(
-              tier.rate * 1000
-            ).toFixed(1)}/1K rate):`,
-            25,
+            tier.isSelected
+              ? `${tier.count.toLocaleString()} emails (your volume)`
+              : `Up to ${tier.count.toLocaleString()} emails`,
+            30,
             y
           );
           doc.setTextColor(40, 40, 40);
-          doc.text(formatCurrency(tier.total), 190, y, { align: "right" });
-          y += 5;
+          doc.text(formatCurrency(tier.total), 190, y - 5, { align: "right" });
+          if (tier.isSelected) {
+            doc.setTextColor(128, 0, 128);
+            doc.text("(Selected)", 190, y, { align: "right" });
+          }
+          y += 10;
         });
       }
 
@@ -1356,10 +1362,12 @@ export default function SpoonityCalculator() {
         marketingEmails:
           plan !== "loyalty"
             ? getMarketingEmailBreakdown(marketing).map((tier) => ({
+                tierName: tier.tierName,
                 range: tier.range,
                 count: tier.count.toLocaleString(),
                 ratePerThousand: `$${(tier.rate * 1000).toFixed(1)}`,
                 total: formatCurrency(tier.total),
+                isSelected: tier.isSelected,
               }))
             : [],
       },
@@ -1688,18 +1696,24 @@ export default function SpoonityCalculator() {
         y += 5;
 
         getMarketingEmailBreakdown(marketing).forEach((tier) => {
-          y = checkPageBreak(10);
+          y = checkPageBreak(15);
           doc.setTextColor(120, 120, 120);
+          doc.text(`${tier.tierName}: ${tier.range}`, 25, y);
+          y += 5;
           doc.text(
-            `${tier.count.toLocaleString()} emails ($${(
-              tier.rate * 1000
-            ).toFixed(1)}/1K rate):`,
-            25,
+            tier.isSelected
+              ? `${tier.count.toLocaleString()} emails (your volume)`
+              : `Up to ${tier.count.toLocaleString()} emails`,
+            30,
             y
           );
           doc.setTextColor(40, 40, 40);
-          doc.text(formatCurrency(tier.total), 190, y, { align: "right" });
-          y += 5;
+          doc.text(formatCurrency(tier.total), 190, y - 5, { align: "right" });
+          if (tier.isSelected) {
+            doc.setTextColor(128, 0, 128);
+            doc.text("(Selected)", 190, y, { align: "right" });
+          }
+          y += 10;
         });
       }
 
@@ -2234,50 +2248,101 @@ export default function SpoonityCalculator() {
 
   // Function to get marketing email tier breakdown
   const getMarketingEmailBreakdown = (emailCount: number) => {
-    // True tiered breakdown
-    const breakdown = [];
-    let remaining = emailCount;
-    let total = 0;
+    // Licensed-based model: merchant is charged for committed volume
+    const baseFee = 500; // Base fee for all tiers
+    const breakdown: Array<{
+      range: string;
+      count: number;
+      rate: number;
+      volumeCost: number;
+      baseFee: number;
+      total: number;
+      isSelected: boolean;
+      tierName: string;
+    }> = [];
 
-    // First 100,000 @ $0.0006
-    if (remaining > 0) {
-      const count = Math.min(remaining, 100000);
-      const rate = 0.0006;
-      breakdown.push({
-        range: "1-100,000",
-        count,
-        rate,
-        total: count * rate,
-      });
-      total += count * rate;
-      remaining -= count;
+    // Define the new tier structure
+    const tiers = [
+      {
+        threshold: 10000,
+        range: "0-10,000",
+        rate: 0.0,
+        volumeCost: 0,
+        totalCost: 500,
+      },
+      {
+        threshold: 100000,
+        range: "10,001-100,000",
+        rate: 0.008,
+        volumeCost: 800,
+        totalCost: 1300,
+      },
+      {
+        threshold: 250000,
+        range: "100,001-250,000",
+        rate: 0.006,
+        volumeCost: 1500,
+        totalCost: 2000,
+      },
+      {
+        threshold: 500000,
+        range: "250,001-500,000",
+        rate: 0.0045,
+        volumeCost: 2250,
+        totalCost: 2750,
+      },
+      {
+        threshold: 1000000,
+        range: "500,001-1,000,000",
+        rate: 0.0034,
+        volumeCost: 3375,
+        totalCost: 3875,
+      },
+      {
+        threshold: 2500000,
+        range: "1,000,001-2,500,000",
+        rate: 0.0025,
+        volumeCost: 6328,
+        totalCost: 6828,
+      },
+      {
+        threshold: 10000000,
+        range: "2,500,001-10,000,000",
+        rate: 0.0022,
+        volumeCost: 21516,
+        totalCost: 22016,
+      },
+    ];
+
+    // Find the appropriate tier based on email count
+    let selectedTierIndex = 0;
+    for (let i = 0; i < tiers.length; i++) {
+      if (emailCount <= tiers[i].threshold) {
+        selectedTierIndex = i;
+        break;
+      }
     }
-    // Next 900,000 @ $0.0004
-    if (remaining > 0) {
-      const count = Math.min(remaining, 900000);
-      const rate = 0.0004;
-      breakdown.push({
-        range: "100,001-1,000,000",
-        count,
-        rate,
-        total: count * rate,
-      });
-      total += count * rate;
-      remaining -= count;
+
+    // If email count exceeds the highest tier, use the highest tier
+    if (emailCount > tiers[tiers.length - 1].threshold) {
+      selectedTierIndex = tiers.length - 1;
     }
-    // Above 1,000,000 @ $0.0002
-    if (remaining > 0) {
-      const count = remaining;
-      const rate = 0.0002;
+
+    // Add all tiers to breakdown, highlighting the selected one
+    tiers.forEach((tier, index) => {
+      const isSelected = index === selectedTierIndex;
       breakdown.push({
-        range: "1,000,001+",
-        count,
-        rate,
-        total: count * rate,
+        range: tier.range,
+        count: isSelected ? emailCount : tier.threshold,
+        rate: tier.rate,
+        volumeCost: tier.volumeCost,
+        baseFee: baseFee,
+        total: tier.totalCost,
+        isSelected: isSelected,
+        tierName: `Tier ${index + 1}`,
       });
-      total += count * rate;
-      remaining = 0;
-    }
+    });
+
     return breakdown;
   };
 
@@ -3110,14 +3175,46 @@ export default function SpoonityCalculator() {
                         </div>
                         {getMarketingEmailBreakdown(marketing).map(
                           (tier, index) => (
-                            <div key={index} className="flex justify-between">
-                              <span className="text-gray-600">
-                                {tier.count.toLocaleString()} emails ($
-                                {(tier.rate * 1000).toFixed(1)}/1K rate):
-                              </span>
-                              <span className="font-medium">
-                                {formatCurrency(tier.total)}
-                              </span>
+                            <div
+                              key={index}
+                              className={`flex justify-between p-2 rounded ${
+                                tier.isSelected
+                                  ? "bg-purple-100 border border-purple-300"
+                                  : "bg-gray-50"
+                              }`}
+                            >
+                              <div className="flex flex-col">
+                                <span
+                                  className={`text-sm font-medium ${
+                                    tier.isSelected
+                                      ? "text-purple-800"
+                                      : "text-gray-600"
+                                  }`}
+                                >
+                                  {tier.tierName}: {tier.range}
+                                </span>
+                                <span className="text-xs text-gray-500">
+                                  {tier.isSelected
+                                    ? `${tier.count.toLocaleString()} emails (your volume)`
+                                    : `Up to ${tier.count.toLocaleString()} emails`}
+                                </span>
+                              </div>
+                              <div className="text-right">
+                                <span
+                                  className={`font-medium ${
+                                    tier.isSelected
+                                      ? "text-purple-800"
+                                      : "text-gray-600"
+                                  }`}
+                                >
+                                  {formatCurrency(tier.total)}
+                                </span>
+                                {tier.isSelected && (
+                                  <div className="text-xs text-purple-600">
+                                    Selected
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           )
                         )}
@@ -4672,15 +4769,44 @@ export default function SpoonityCalculator() {
                               (tier, index) => (
                                 <div
                                   key={index}
-                                  className="flex justify-between"
+                                  className={`flex justify-between p-2 rounded ${
+                                    tier.isSelected
+                                      ? "bg-purple-100 border border-purple-300"
+                                      : "bg-gray-50"
+                                  }`}
                                 >
-                                  <span className="text-gray-600">
-                                    {tier.count.toLocaleString()} emails ($
-                                    {(tier.rate * 1000).toFixed(1)}/1K rate):
-                                  </span>
-                                  <span className="font-medium">
-                                    {formatCurrency(tier.total)}
-                                  </span>
+                                  <div className="flex flex-col">
+                                    <span
+                                      className={`text-sm font-medium ${
+                                        tier.isSelected
+                                          ? "text-purple-800"
+                                          : "text-gray-600"
+                                      }`}
+                                    >
+                                      {tier.tierName}: {tier.range}
+                                    </span>
+                                    <span className="text-xs text-gray-500">
+                                      {tier.isSelected
+                                        ? `${tier.count.toLocaleString()} emails (your volume)`
+                                        : `Up to ${tier.count.toLocaleString()} emails`}
+                                    </span>
+                                  </div>
+                                  <div className="text-right">
+                                    <span
+                                      className={`font-medium ${
+                                        tier.isSelected
+                                          ? "text-purple-800"
+                                          : "text-gray-600"
+                                      }`}
+                                    >
+                                      {formatCurrency(tier.total)}
+                                    </span>
+                                    {tier.isSelected && (
+                                      <div className="text-xs text-purple-600">
+                                        Selected
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
                               )
                             )}
