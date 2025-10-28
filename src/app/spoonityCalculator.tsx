@@ -932,10 +932,10 @@ export default function SpoonityCalculator() {
           y
         );
         y += 5;
-        doc.setTextColor(120, 120, 120);
-        doc.text(`($${tier.price.toFixed(2)}/store)`, 30, y);
         doc.setTextColor(40, 40, 40);
-        doc.text(formatCurrency(tier.total), 190, y - 10, { align: "right" });
+        doc.text(`$${tier.price.toFixed(2)}/store`, 190, y - 10, {
+          align: "right",
+        });
         if (tier.isSelected) {
           doc.setTextColor(128, 0, 128);
           doc.text("(Selected)", 190, y - 5, { align: "right" });
@@ -1650,10 +1650,10 @@ export default function SpoonityCalculator() {
           y
         );
         y += 5;
-        doc.setTextColor(120, 120, 120);
-        doc.text(`($${tier.price.toFixed(2)}/store)`, 30, y);
         doc.setTextColor(40, 40, 40);
-        doc.text(formatCurrency(tier.total), 190, y - 10, { align: "right" });
+        doc.text(`$${tier.price.toFixed(2)}/store`, 190, y - 10, {
+          align: "right",
+        });
         if (tier.isSelected) {
           doc.setTextColor(128, 0, 128);
           doc.text("(Selected)", 190, y - 5, { align: "right" });
@@ -3169,9 +3169,6 @@ export default function SpoonityCalculator() {
                                   ? `${tier.count.toLocaleString()} stores (your volume)`
                                   : `Up to ${tier.count.toLocaleString()} stores`}
                               </span>
-                              <span className="text-xs text-gray-500">
-                                (${`$${tier.price.toFixed(2)}`}/store)
-                              </span>
                             </div>
                             <div className="text-right">
                               <span
@@ -3181,7 +3178,7 @@ export default function SpoonityCalculator() {
                                     : "text-gray-600"
                                 }`}
                               >
-                                {formatCurrency(tier.total)}
+                                ${tier.price.toFixed(2)}/store
                               </span>
                               {tier.isSelected && (
                                 <div className="text-xs text-purple-600">
@@ -4796,9 +4793,6 @@ export default function SpoonityCalculator() {
                                       ? `${tier.count.toLocaleString()} stores (your volume)`
                                       : `Up to ${tier.count.toLocaleString()} stores`}
                                   </span>
-                                  <span className="text-xs text-gray-500">
-                                    (${`${tier.price.toFixed(2)}`}/store)
-                                  </span>
                                 </div>
                                 <div className="text-right">
                                   <span
@@ -4808,7 +4802,7 @@ export default function SpoonityCalculator() {
                                         : "text-gray-600"
                                     }`}
                                   >
-                                    {formatCurrency(tier.total)}
+                                    ${tier.price.toFixed(2)}/store
                                   </span>
                                   {tier.isSelected && (
                                     <div className="text-xs text-purple-600">
