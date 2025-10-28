@@ -931,11 +931,14 @@ export default function SpoonityCalculator() {
           30,
           y
         );
+        y += 5;
+        doc.setTextColor(120, 120, 120);
+        doc.text(`($${tier.price.toFixed(2)}/store)`, 30, y);
         doc.setTextColor(40, 40, 40);
-        doc.text(formatCurrency(tier.total), 190, y - 5, { align: "right" });
+        doc.text(formatCurrency(tier.total), 190, y - 10, { align: "right" });
         if (tier.isSelected) {
           doc.setTextColor(128, 0, 128);
-          doc.text("(Selected)", 190, y, { align: "right" });
+          doc.text("(Selected)", 190, y - 5, { align: "right" });
         }
         y += 10;
       });
@@ -1634,17 +1637,28 @@ export default function SpoonityCalculator() {
       doc.setFont("helvetica", "normal");
       y += 6;
 
-      getConnectionFeeBreakdown(stores).forEach((tier) => {
-        y = checkPageBreak(10);
+      getConnectionFeeBreakdown(stores).forEach((tier: any) => {
+        y = checkPageBreak(15);
         doc.setTextColor(120, 120, 120);
+        doc.text(`${tier.tierName}: ${tier.range}`, 25, y);
+        y += 5;
         doc.text(
-          `${tier.count} stores (Tier ${tier.range} @ $${tier.price}/store):`,
-          25,
+          tier.isSelected
+            ? `${tier.count.toLocaleString()} stores (your volume)`
+            : `Up to ${tier.count.toLocaleString()} stores`,
+          30,
           y
         );
-        doc.setTextColor(40, 40, 40);
-        doc.text(formatCurrency(tier.total), 190, y, { align: "right" });
         y += 5;
+        doc.setTextColor(120, 120, 120);
+        doc.text(`($${tier.price.toFixed(2)}/store)`, 30, y);
+        doc.setTextColor(40, 40, 40);
+        doc.text(formatCurrency(tier.total), 190, y - 10, { align: "right" });
+        if (tier.isSelected) {
+          doc.setTextColor(128, 0, 128);
+          doc.text("(Selected)", 190, y - 5, { align: "right" });
+        }
+        y += 10;
       });
 
       // Transaction Processing Tier Breakdown
@@ -3154,6 +3168,9 @@ export default function SpoonityCalculator() {
                                 {tier.isSelected
                                   ? `${tier.count.toLocaleString()} stores (your volume)`
                                   : `Up to ${tier.count.toLocaleString()} stores`}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                (${`$${tier.price.toFixed(2)}`}/store)
                               </span>
                             </div>
                             <div className="text-right">
@@ -4778,6 +4795,9 @@ export default function SpoonityCalculator() {
                                     {tier.isSelected
                                       ? `${tier.count.toLocaleString()} stores (your volume)`
                                       : `Up to ${tier.count.toLocaleString()} stores`}
+                                  </span>
+                                  <span className="text-xs text-gray-500">
+                                    (${`${tier.price.toFixed(2)}`}/store)
                                   </span>
                                 </div>
                                 <div className="text-right">
