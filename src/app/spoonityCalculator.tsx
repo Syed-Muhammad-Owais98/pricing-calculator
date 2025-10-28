@@ -2398,14 +2398,14 @@ export default function SpoonityCalculator() {
     // Marketing emails (for Marketing and Intelligence plans)
     let marketingFees = 0;
     if (plan !== "loyalty") {
-      // Use tiered breakdown
+      // Use tiered breakdown - only get the selected tier's cost
       const breakdown = getMarketingEmailBreakdown(marketing);
-      marketingFees = breakdown.reduce((sum, tier) => sum + tier.total, 0);
+      const selectedTier = breakdown.find((tier) => tier.isSelected);
+      marketingFees = selectedTier ? selectedTier.total : 0;
       monthly += marketingFees;
 
       // Push notifications
       if (pushNotifications) {
-        marketingFees += marketing * 0.0045;
         monthly += marketing * 0.0045;
       }
     }
@@ -4754,8 +4754,8 @@ export default function SpoonityCalculator() {
                           {plan !== "loyalty" && (
                             <p>
                               {formatCurrency(
-                                feeBreakdown.net.marketing ||
-                                  feeBreakdown.marketing
+                                // feeBreakdown.net.marketing ||
+                                feeBreakdown.marketing
                               )}
                             </p>
                           )}
