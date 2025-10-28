@@ -298,7 +298,7 @@ export default function SpoonityCalculator() {
       name: "Spoonity Marketing",
       description: "Includes Loyalty + Marketing features",
       fullDescription:
-        "The Spoonity Marketing plan includes all Loyalty features plus comprehensive marketing capabilities. It starts with a base license fee of $1,500/month plus per-store connection fees. Marketing emails use a licensed-based model with committed volume pricing: $500 base fee plus tier-based costs ranging from $0 for up to 10,000 emails to $21,516 for up to 10 million emails. Push notifications can be added for $0.0045 per push.",
+        "The Spoonity Marketing plan includes all Loyalty features plus comprehensive marketing capabilities. It starts with a base license fee of $1,500/month plus per-store connection fees. Marketing emails use a licensed-based model with committed volume pricing: $500 base fee plus tier-based costs based on committed volumes.",
     },
     intelligence: {
       base: 3000,
