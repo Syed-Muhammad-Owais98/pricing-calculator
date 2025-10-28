@@ -919,17 +919,25 @@ export default function SpoonityCalculator() {
       doc.setFont("helvetica", "normal");
       y += 6;
 
-      getConnectionFeeBreakdown(stores).forEach((tier) => {
-        y = checkPageBreak(10);
+      getConnectionFeeBreakdown(stores).forEach((tier: any) => {
+        y = checkPageBreak(15);
         doc.setTextColor(120, 120, 120);
+        doc.text(`${tier.tierName}: ${tier.range}`, 25, y);
+        y += 5;
         doc.text(
-          `${tier.count} stores (Tier ${tier.range} @ $${tier.price}/store):`,
-          25,
+          tier.isSelected
+            ? `${tier.count.toLocaleString()} stores (your volume)`
+            : `Up to ${tier.count.toLocaleString()} stores`,
+          30,
           y
         );
         doc.setTextColor(40, 40, 40);
-        doc.text(formatCurrency(tier.total), 190, y, { align: "right" });
-        y += 5;
+        doc.text(formatCurrency(tier.total), 190, y - 5, { align: "right" });
+        if (tier.isSelected) {
+          doc.setTextColor(128, 0, 128);
+          doc.text("(Selected)", 190, y, { align: "right" });
+        }
+        y += 10;
       });
 
       // Transaction Processing Tier Breakdown
@@ -2189,7 +2197,7 @@ export default function SpoonityCalculator() {
     return storeCount * applicableTier.price;
   };
 
-  // Function to get connection fee tier breakdown
+  // Function to get connection fee tier breakdown (detailed, highlights selected tier)
   const getConnectionFeeBreakdown = (storeCount: number) => {
     const tiers = [
       { min: 0, max: 10, price: 150 },
@@ -2204,23 +2212,29 @@ export default function SpoonityCalculator() {
       { min: 1001, max: 10000, price: 58.11 },
     ];
 
-    // Find the applicable tier
-    let applicableTier = tiers[0];
-    for (const tier of tiers) {
-      if (storeCount >= tier.min && storeCount <= tier.max) {
-        applicableTier = tier;
+    // Find selected tier index
+    let selectedTierIndex = 0;
+    for (let i = 0; i < tiers.length; i++) {
+      const t = tiers[i];
+      if (storeCount >= t.min && storeCount <= t.max) {
+        selectedTierIndex = i;
         break;
       }
     }
 
-    return [
-      {
-        range: `${applicableTier.min}-${applicableTier.max}`,
-        count: storeCount,
-        price: applicableTier.price,
-        total: storeCount * applicableTier.price,
-      },
-    ];
+    // Return all tiers, styled like Marketing breakdown
+    return tiers.map((tier, index) => {
+      const isSelected = index === selectedTierIndex;
+      const count = isSelected ? storeCount : tier.max; // show "Up to" for others
+      return {
+        range: `${tier.min}-${tier.max}`,
+        count,
+        price: tier.price,
+        total: count * tier.price,
+        isSelected,
+        tierName: `Tier ${index + 1}`,
+      } as any;
+    });
   };
 
   // Function to get transaction fee tier breakdown
@@ -3116,17 +3130,51 @@ export default function SpoonityCalculator() {
                       Connection Fee Breakdown
                     </h4>
                     <div className="space-y-1 text-xs">
-                      {getConnectionFeeBreakdown(stores).map((tier, index) => (
-                        <div key={index} className="flex justify-between">
-                          <span className="text-gray-600">
-                            {tier.count} stores (Tier {tier.range} @ $
-                            {tier.price}/store):
-                          </span>
-                          <span className="font-medium">
-                            {formatCurrency(tier.total)}
-                          </span>
-                        </div>
-                      ))}
+                      {getConnectionFeeBreakdown(stores).map(
+                        (tier: any, index) => (
+                          <div
+                            key={index}
+                            className={`flex justify-between p-2 rounded ${
+                              tier.isSelected
+                                ? "bg-purple-100 border border-purple-300"
+                                : "bg-gray-50"
+                            }`}
+                          >
+                            <div className="flex flex-col">
+                              <span
+                                className={`text-sm font-medium ${
+                                  tier.isSelected
+                                    ? "text-purple-800"
+                                    : "text-gray-600"
+                                }`}
+                              >
+                                {tier.tierName}: {tier.range}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                {tier.isSelected
+                                  ? `${tier.count.toLocaleString()} stores (your volume)`
+                                  : `Up to ${tier.count.toLocaleString()} stores`}
+                              </span>
+                            </div>
+                            <div className="text-right">
+                              <span
+                                className={`font-medium ${
+                                  tier.isSelected
+                                    ? "text-purple-800"
+                                    : "text-gray-600"
+                                }`}
+                              >
+                                {formatCurrency(tier.total)}
+                              </span>
+                              {tier.isSelected && (
+                                <div className="text-xs text-purple-600">
+                                  Selected
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      )}
                     </div>
                   </div>
 
@@ -4707,15 +4755,47 @@ export default function SpoonityCalculator() {
                         </h4>
                         <div className="space-y-1 text-xs">
                           {getConnectionFeeBreakdown(stores).map(
-                            (tier, index) => (
-                              <div key={index} className="flex justify-between">
-                                <span className="text-gray-600">
-                                  {tier.count} stores (Tier {tier.range} @ $
-                                  {tier.price}/store):
-                                </span>
-                                <span className="font-medium">
-                                  {formatCurrency(tier.total)}
-                                </span>
+                            (tier: any, index) => (
+                              <div
+                                key={index}
+                                className={`flex justify-between p-2 rounded ${
+                                  tier.isSelected
+                                    ? "bg-purple-100 border border-purple-300"
+                                    : "bg-gray-50"
+                                }`}
+                              >
+                                <div className="flex flex-col">
+                                  <span
+                                    className={`text-sm font-medium ${
+                                      tier.isSelected
+                                        ? "text-purple-800"
+                                        : "text-gray-600"
+                                    }`}
+                                  >
+                                    {tier.tierName}: {tier.range}
+                                  </span>
+                                  <span className="text-xs text-gray-500">
+                                    {tier.isSelected
+                                      ? `${tier.count.toLocaleString()} stores (your volume)`
+                                      : `Up to ${tier.count.toLocaleString()} stores`}
+                                  </span>
+                                </div>
+                                <div className="text-right">
+                                  <span
+                                    className={`font-medium ${
+                                      tier.isSelected
+                                        ? "text-purple-800"
+                                        : "text-gray-600"
+                                    }`}
+                                  >
+                                    {formatCurrency(tier.total)}
+                                  </span>
+                                  {tier.isSelected && (
+                                    <div className="text-xs text-purple-600">
+                                      Selected
+                                    </div>
+                                  )}
+                                </div>
                               </div>
                             )
                           )}
