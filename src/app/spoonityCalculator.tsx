@@ -1013,11 +1013,15 @@ export default function SpoonityCalculator() {
           );
           doc.setTextColor(40, 40, 40);
           doc.text(formatCurrency(tier.total), 190, y - 5, { align: "right" });
+          doc.setTextColor(120, 120, 120);
+          doc.text("($500 base fee included)", 190, y, { align: "right" });
           if (tier.isSelected) {
             doc.setTextColor(128, 0, 128);
-            doc.text("(Selected)", 190, y, { align: "right" });
+            doc.text("(Selected)", 190, y + 5, { align: "right" });
+            y += 15;
+          } else {
+            y += 12;
           }
-          y += 10;
         });
       }
 
@@ -1731,11 +1735,15 @@ export default function SpoonityCalculator() {
           );
           doc.setTextColor(40, 40, 40);
           doc.text(formatCurrency(tier.total), 190, y - 5, { align: "right" });
+          doc.setTextColor(120, 120, 120);
+          doc.text("($500 base fee included)", 190, y, { align: "right" });
           if (tier.isSelected) {
             doc.setTextColor(128, 0, 128);
-            doc.text("(Selected)", 190, y, { align: "right" });
+            doc.text("(Selected)", 190, y + 5, { align: "right" });
+            y += 15;
+          } else {
+            y += 12;
           }
-          y += 10;
         });
       }
 
@@ -3130,7 +3138,19 @@ export default function SpoonityCalculator() {
                       <p>{formatCurrency(feeBreakdown.connection)}</p>
                       <p>{formatCurrency(feeBreakdown.transaction)}</p>
                       {plan !== "loyalty" && (
-                        <p>{formatCurrency(feeBreakdown.marketing)}</p>
+                        <p>
+                          {(() => {
+                            const selectedTier = getMarketingEmailBreakdown(
+                              marketing
+                            ).find((t) => t.isSelected);
+                            const display = selectedTier
+                              ? selectedTier.tierName !== "Tier 1"
+                                ? selectedTier.total - 500
+                                : selectedTier.total
+                              : feeBreakdown.marketing;
+                            return formatCurrency(display);
+                          })()}
+                        </p>
                       )}
                       {plan !== "loyalty" && pushNotifications && (
                         <p>{formatCurrency(marketing * 0.0045)}</p>
@@ -3271,6 +3291,9 @@ export default function SpoonityCalculator() {
                                 >
                                   {formatCurrency(tier.total)}
                                 </span>
+                                <div className="text-xs text-gray-500">
+                                  ($500 base fee included)
+                                </div>
                                 {tier.isSelected && (
                                   <div className="text-xs text-purple-600">
                                     Selected
@@ -4750,10 +4773,17 @@ export default function SpoonityCalculator() {
                           </p>
                           {plan !== "loyalty" && (
                             <p>
-                              {formatCurrency(
-                                // feeBreakdown.net.marketing ||
-                                feeBreakdown.marketing
-                              )}
+                              {(() => {
+                                const selectedTier = getMarketingEmailBreakdown(
+                                  marketing
+                                ).find((t) => t.isSelected);
+                                const display = selectedTier
+                                  ? selectedTier.tierName !== "Tier 1"
+                                    ? selectedTier.total - 500
+                                    : selectedTier.total
+                                  : feeBreakdown.marketing;
+                                return formatCurrency(display);
+                              })()}
                             </p>
                           )}
                           {plan !== "loyalty" && pushNotifications && (
@@ -4895,6 +4925,9 @@ export default function SpoonityCalculator() {
                                     >
                                       {formatCurrency(tier.total)}
                                     </span>
+                                    <div className="text-xs text-gray-500">
+                                      ($500 base fee included)
+                                    </div>
                                     {tier.isSelected && (
                                       <div className="text-xs text-purple-600">
                                         Selected
