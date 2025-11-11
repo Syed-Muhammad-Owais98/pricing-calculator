@@ -1,4 +1,5 @@
 "use client";
+
 import React from "react";
 
 // Declare window with jspdf property for TypeScript
@@ -213,6 +214,9 @@ export default function SpoonityCalculator() {
   const [perStore, setPerStore] = React.useState(0);
   const [activeTab, setActiveTab] = React.useState("inputs");
   const [totalBeforeSupport, setTotalBeforeSupport] = React.useState(0);
+  // State for manually selected connection fee tier (null = auto-select based on store count)
+  const [selectedConnectionTierIndex, setSelectedConnectionTierIndex] =
+    React.useState<number | null>(null);
 
   // State for fee breakdown
   const [feeBreakdown, setFeeBreakdown] = React.useState({
@@ -540,21 +544,34 @@ export default function SpoonityCalculator() {
   };
 
   // Function to save token and user data to localStorage
-  const saveTokenAndData = (token: string) => {
+  const saveTokenAndData = (
+    token: string,
+    userData?: {
+      firstName?: string;
+      lastName?: string;
+      email?: string;
+      phone?: string;
+      company?: string;
+      role?: string;
+      country?: string;
+      businessType?: string;
+    }
+  ) => {
     const expiryTime = Date.now() + TOKEN_EXPIRY;
     localStorage.setItem("spoonity_token", token);
     localStorage.setItem("spoonity_token_expiry", expiryTime.toString());
     localStorage.setItem(
       "spoonity_user_data",
       JSON.stringify({
-        firstName,
-        lastName,
-        email,
-        phone,
-        company,
-        role,
-        country: country === "Other" ? otherCountry : country,
-        businessType,
+        firstName: userData?.firstName ?? firstName,
+        lastName: userData?.lastName ?? lastName,
+        email: userData?.email ?? email,
+        phone: userData?.phone ?? phone,
+        company: userData?.company ?? company,
+        role: userData?.role ?? role,
+        country:
+          userData?.country ?? (country === "Other" ? otherCountry : country),
+        businessType: userData?.businessType ?? businessType,
       })
     );
   };
@@ -623,37 +640,23 @@ export default function SpoonityCalculator() {
   // Handle login form submission
   const handleLogin = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
-    // Basic validation
-    if (firstName.trim() === "") {
-      alert("Please enter your first name");
+
+    // Required field validations
+    if (token.trim() === "") {
+      setTokenError("Please enter your access token");
       return;
     }
-    if (lastName.trim() === "") {
-      alert("Please enter your last name");
-      return;
-    }
-    if (email.trim() === "" || !validateEmail(email)) {
-      alert("Please enter a valid email address");
-      return;
-    }
-    if (phone.trim() === "") {
-      alert("Please enter your cell phone number");
-      return;
-    }
-    if (company.trim() === "") {
-      alert("Please enter your company name");
-      return;
-    }
-    if (role.trim() === "") {
-      alert("Please enter your role");
-      return;
-    }
+
     if (country === "Other" && otherCountry.trim() === "") {
       alert("Please enter your country");
       return;
     }
-    if (token.trim() === "") {
-      setTokenError("Please enter your access token");
+
+    if (
+      !businessType ||
+      (businessType !== "corporate" && businessType !== "franchise")
+    ) {
+      alert("Please select a business type");
       return;
     }
 
@@ -662,6 +665,22 @@ export default function SpoonityCalculator() {
     if (!isValidToken) {
       setTokenError("Invalid access token");
       return;
+    }
+
+    // Apply defaults for optional fields if empty
+    const finalFirstName = firstName.trim() === "" ? "John" : firstName.trim();
+    const finalLastName = lastName.trim() === "" ? "Doe" : lastName.trim();
+    const finalCompany = company.trim() === "" ? "Spoonity" : company.trim();
+
+    // Update state with defaults if needed
+    if (firstName.trim() === "") {
+      setFirstName("John");
+    }
+    if (lastName.trim() === "") {
+      setLastName("Doe");
+    }
+    if (company.trim() === "") {
+      setCompany("Spoonity");
     }
 
     // If validation passes, set initial values based on country selection
@@ -675,8 +694,17 @@ export default function SpoonityCalculator() {
       setSmsCountry(country);
     }
 
-    // Save token and user data
-    saveTokenAndData(token);
+    // Save token and user data (using final values with defaults)
+    saveTokenAndData(token, {
+      firstName: finalFirstName,
+      lastName: finalLastName,
+      email: email.trim(),
+      phone: phone.trim(),
+      company: finalCompany,
+      role: role.trim(),
+      country: country === "Other" ? otherCountry : country,
+      businessType,
+    });
 
     // If validation passes, set logged in to true and scroll to top
     setIsLoggedIn(true);
@@ -2163,6 +2191,8 @@ export default function SpoonityCalculator() {
     discountsApplied,
     appliedSubtotalDiscount,
     appliedItemDiscounts,
+    // Connection fee tier selection
+    selectedConnectionTierIndex,
   ]);
 
   // Calculate default SMS message count when stores or transactions change
@@ -2207,12 +2237,21 @@ export default function SpoonityCalculator() {
       { min: 1001, max: 10000, price: 58.11 },
     ];
 
-    // Find the applicable tier
+    // Use manually selected tier if available, otherwise find the applicable tier
     let applicableTier = tiers[0];
-    for (const tier of tiers) {
-      if (storeCount >= tier.min && storeCount <= tier.max) {
-        applicableTier = tier;
-        break;
+    if (
+      selectedConnectionTierIndex !== null &&
+      selectedConnectionTierIndex >= 0 &&
+      selectedConnectionTierIndex < tiers.length
+    ) {
+      applicableTier = tiers[selectedConnectionTierIndex];
+    } else {
+      // Find the applicable tier based on store count
+      for (const tier of tiers) {
+        if (storeCount >= tier.min && storeCount <= tier.max) {
+          applicableTier = tier;
+          break;
+        }
       }
     }
 
@@ -2234,25 +2273,35 @@ export default function SpoonityCalculator() {
       { min: 1001, max: 10000, price: 58.11 },
     ];
 
-    // Find selected tier index
+    // Use manually selected tier if available, otherwise find the applicable tier
     let selectedTierIndex = 0;
-    for (let i = 0; i < tiers.length; i++) {
-      const t = tiers[i];
-      if (storeCount >= t.min && storeCount <= t.max) {
-        selectedTierIndex = i;
-        break;
+    if (
+      selectedConnectionTierIndex !== null &&
+      selectedConnectionTierIndex >= 0 &&
+      selectedConnectionTierIndex < tiers.length
+    ) {
+      selectedTierIndex = selectedConnectionTierIndex;
+    } else {
+      // Find the applicable tier based on store count
+      for (let i = 0; i < tiers.length; i++) {
+        const t = tiers[i];
+        if (storeCount >= t.min && storeCount <= t.max) {
+          selectedTierIndex = i;
+          break;
+        }
       }
     }
 
     // Return all tiers, styled like Marketing breakdown
     return tiers.map((tier, index) => {
       const isSelected = index === selectedTierIndex;
-      const count = isSelected ? storeCount : tier.max; // show "Up to" for others
+      // If this tier is selected, use actual store count; otherwise show tier max
+      const count = isSelected ? storeCount : tier.max;
       return {
         range: `${tier.min}-${tier.max}`,
         count,
         price: tier.price,
-        total: count * tier.price,
+        total: isSelected ? storeCount * tier.price : tier.max * tier.price,
         isSelected,
         tierName: `Tier ${index + 1}`,
       } as any;
@@ -2932,8 +2981,7 @@ export default function SpoonityCalculator() {
                   className="w-full border rounded-md p-2.5 input-field"
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
-                  required
-                  placeholder="John"
+                  placeholder="John (optional)"
                 />
               </div>
 
@@ -2950,8 +2998,7 @@ export default function SpoonityCalculator() {
                   className="w-full border rounded-md p-2.5 input-field"
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
-                  required
-                  placeholder="Smith"
+                  placeholder="Doe (optional)"
                 />
               </div>
             </div>
@@ -2966,8 +3013,7 @@ export default function SpoonityCalculator() {
                 className="w-full border rounded-md p-2.5 input-field"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                required
-                placeholder="you@example.com"
+                placeholder="you@example.com (optional)"
               />
             </div>
 
@@ -2987,11 +3033,10 @@ export default function SpoonityCalculator() {
                     setPhone(value);
                   }
                 }}
-                required
                 placeholder={
                   country !== "Other"
-                    ? `${countryDialCodes[country]} followed by your number`
-                    : "Enter phone number"
+                    ? `${countryDialCodes[country]} followed by your number (optional)`
+                    : "Enter phone number (optional)"
                 }
               />
               <p className="text-xs text-gray-500 mt-1">
@@ -3014,8 +3059,7 @@ export default function SpoonityCalculator() {
                 className="w-full border rounded-md p-2.5 input-field"
                 value={company}
                 onChange={(e) => setCompany(e.target.value)}
-                required
-                placeholder="Your Company"
+                placeholder="Spoonity (optional)"
               />
             </div>
 
@@ -3029,8 +3073,7 @@ export default function SpoonityCalculator() {
                 className="w-full border rounded-md p-2.5 input-field"
                 value={role}
                 onChange={(e) => setRole(e.target.value)}
-                required
-                placeholder="Marketing Manager"
+                placeholder="Marketing Manager (optional)"
               />
             </div>
 
@@ -3492,46 +3535,48 @@ export default function SpoonityCalculator() {
                           <span className="font-medium">
                             {formatCurrency(15000)}
                           </span>
-                          <div className="flex gap-2 pt-2">
-                            <button
-                              type="button"
-                              className={`px-3 py-2 rounded-md text-sm font-medium text-white ${"bg-blue-600 hover:bg-blue-700"}`}
-                              // disabled={discountsApplied}
-                              onClick={() => {
-                                setAppliedItemDiscounts(itemDiscounts);
-                                setAppliedSubtotalDiscount(subtotalDiscount);
-                                setAppliedDiscountReason(discountReason);
-                                setDiscountsApplied(true);
-                              }}
-                            >
-                              Apply Discounts
-                            </button>
-                            <button
-                              type="button"
-                              className={`px-3 py-2 rounded-md text-sm font-medium ${
-                                discountsApplied
-                                  ? "bg-red-600 text-white hover:bg-red-700"
-                                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                              }`}
-                              onClick={() => {
-                                setItemDiscounts({});
-                                setSubtotalDiscount({
-                                  type: "fixed",
-                                  value: 0,
-                                });
-                                setDiscountReason("");
-                                setAppliedItemDiscounts({});
-                                setAppliedSubtotalDiscount({
-                                  type: "fixed",
-                                  value: 0,
-                                });
-                                setAppliedDiscountReason("");
-                                setDiscountsApplied(false);
-                              }}
-                            >
-                              Clear Discounts
-                            </button>
-                          </div>
+                          {discountUnlocked && (
+                            <div className="flex gap-2 pt-2">
+                              <button
+                                type="button"
+                                className={`px-3 py-2 rounded-md text-sm font-medium text-white ${"bg-blue-600 hover:bg-blue-700"}`}
+                                // disabled={discountsApplied}
+                                onClick={() => {
+                                  setAppliedItemDiscounts(itemDiscounts);
+                                  setAppliedSubtotalDiscount(subtotalDiscount);
+                                  setAppliedDiscountReason(discountReason);
+                                  setDiscountsApplied(true);
+                                }}
+                              >
+                                Apply Discounts
+                              </button>
+                              <button
+                                type="button"
+                                className={`px-3 py-2 rounded-md text-sm font-medium ${
+                                  discountsApplied
+                                    ? "bg-red-600 text-white hover:bg-red-700"
+                                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                                }`}
+                                onClick={() => {
+                                  setItemDiscounts({});
+                                  setSubtotalDiscount({
+                                    type: "fixed",
+                                    value: 0,
+                                  });
+                                  setDiscountReason("");
+                                  setAppliedItemDiscounts({});
+                                  setAppliedSubtotalDiscount({
+                                    type: "fixed",
+                                    value: 0,
+                                  });
+                                  setAppliedDiscountReason("");
+                                  setDiscountsApplied(false);
+                                }}
+                              >
+                                Clear Discounts
+                              </button>
+                            </div>
+                          )}
                         </div>
                       )}
                       {appType === "standard" && (
@@ -4797,15 +4842,22 @@ export default function SpoonityCalculator() {
                         <h4 className="font-medium mb-2 text-sm">
                           Connection Fee Breakdown
                         </h4>
+                        <p className="text-xs text-gray-500 mb-2">
+                          Click on any tier to select its pricing for your{" "}
+                          {stores} stores
+                        </p>
                         <div className="space-y-1 text-xs">
                           {getConnectionFeeBreakdown(stores).map(
                             (tier: any, index) => (
                               <div
                                 key={index}
-                                className={`flex justify-between p-2 rounded ${
+                                onClick={() =>
+                                  setSelectedConnectionTierIndex(index)
+                                }
+                                className={`flex justify-between p-2 rounded cursor-pointer transition-all hover:shadow-sm ${
                                   tier.isSelected
                                     ? "bg-purple-100 border border-purple-300"
-                                    : "bg-gray-50"
+                                    : "bg-gray-50 hover:bg-gray-100 border border-transparent"
                                 }`}
                               >
                                 <div className="flex flex-col">
@@ -4820,8 +4872,16 @@ export default function SpoonityCalculator() {
                                   </span>
                                   <span className="text-xs text-gray-500">
                                     {tier.isSelected
-                                      ? `${tier.count.toLocaleString()} stores (your volume)`
-                                      : `Up to ${tier.count.toLocaleString()} stores`}
+                                      ? `${tier.count.toLocaleString()} stores (your volume) × $${tier.price.toFixed(
+                                          2
+                                        )}/store = ${formatCurrency(
+                                          tier.count * tier.price
+                                        )}`
+                                      : `${stores.toLocaleString()} stores × $${tier.price.toFixed(
+                                          2
+                                        )}/store = ${formatCurrency(
+                                          stores * tier.price
+                                        )}`}
                                   </span>
                                 </div>
                                 <div className="text-right">
@@ -6087,47 +6147,49 @@ export default function SpoonityCalculator() {
                       )}
                     </div>
                   )}
-                  <div className="flex gap-2 pt-2">
-                    <button
-                      type="button"
-                      className={`px-3 py-2 rounded-md text-sm font-medium text-white ${"bg-blue-600 hover:bg-blue-700"}`}
-                      // disabled={discountsApplied}
-                      onClick={() => {
-                        setAppliedItemDiscounts(itemDiscounts);
-                        setAppliedSubtotalDiscount(subtotalDiscount);
-                        setAppliedDiscountReason(discountReason);
-                        setDiscountsApplied(true);
-                      }}
-                    >
-                      Apply Discounts
-                    </button>
-                    <button
-                      type="button"
-                      className={`px-3 py-2 rounded-md text-sm font-medium ${
-                        discountsApplied
-                          ? "bg-red-600 text-white hover:bg-red-700"
-                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                      }`}
-                      onClick={() => {
-                        // Clear current and applied discounts
-                        setItemDiscounts({});
-                        setSubtotalDiscount({
-                          type: "fixed",
-                          value: 0,
-                        });
-                        setDiscountReason("");
-                        setAppliedItemDiscounts({});
-                        setAppliedSubtotalDiscount({
-                          type: "fixed",
-                          value: 0,
-                        });
-                        setAppliedDiscountReason("");
-                        setDiscountsApplied(false);
-                      }}
-                    >
-                      Clear Discounts
-                    </button>
-                  </div>
+                  {discountUnlocked && (
+                    <div className="flex gap-2 pt-2">
+                      <button
+                        type="button"
+                        className={`px-3 py-2 rounded-md text-sm font-medium text-white ${"bg-blue-600 hover:bg-blue-700"}`}
+                        // disabled={discountsApplied}
+                        onClick={() => {
+                          setAppliedItemDiscounts(itemDiscounts);
+                          setAppliedSubtotalDiscount(subtotalDiscount);
+                          setAppliedDiscountReason(discountReason);
+                          setDiscountsApplied(true);
+                        }}
+                      >
+                        Apply Discounts
+                      </button>
+                      <button
+                        type="button"
+                        className={`px-3 py-2 rounded-md text-sm font-medium ${
+                          discountsApplied
+                            ? "bg-red-600 text-white hover:bg-red-700"
+                            : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                        }`}
+                        onClick={() => {
+                          // Clear current and applied discounts
+                          setItemDiscounts({});
+                          setSubtotalDiscount({
+                            type: "fixed",
+                            value: 0,
+                          });
+                          setDiscountReason("");
+                          setAppliedItemDiscounts({});
+                          setAppliedSubtotalDiscount({
+                            type: "fixed",
+                            value: 0,
+                          });
+                          setAppliedDiscountReason("");
+                          setDiscountsApplied(false);
+                        }}
+                      >
+                        Clear Discounts
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <div className="mt-8">
