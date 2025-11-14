@@ -4843,21 +4843,39 @@ export default function SpoonityCalculator() {
                           Connection Fee Breakdown
                         </h4>
                         <p className="text-xs text-gray-500 mb-2">
-                          Click on any tier to select its pricing for your{" "}
-                          {stores} stores
+                          {discountUnlocked
+                            ? `Click on any tier to select its pricing for your ${stores} stores`
+                            : "Enter the discount password to manually select pricing tiers."}
                         </p>
                         <div className="space-y-1 text-xs">
                           {getConnectionFeeBreakdown(stores).map(
                             (tier: any, index) => (
                               <div
                                 key={index}
-                                onClick={() =>
-                                  setSelectedConnectionTierIndex(index)
-                                }
-                                className={`flex justify-between p-2 rounded cursor-pointer transition-all hover:shadow-sm ${
+                                role={discountUnlocked ? "button" : undefined}
+                                tabIndex={discountUnlocked ? 0 : -1}
+                                aria-disabled={!discountUnlocked}
+                                onClick={() => {
+                                  if (!discountUnlocked) return;
+                                  setSelectedConnectionTierIndex(index);
+                                }}
+                                onKeyDown={(e) => {
+                                  if (!discountUnlocked) return;
+                                  if (e.key === "Enter" || e.key === " ") {
+                                    e.preventDefault();
+                                    setSelectedConnectionTierIndex(index);
+                                  }
+                                }}
+                                className={`flex justify-between p-2 rounded transition-all ${
+                                  discountUnlocked
+                                    ? "cursor-pointer hover:shadow-sm"
+                                    : "cursor-not-allowed opacity-60"
+                                } ${
                                   tier.isSelected
                                     ? "bg-purple-100 border border-purple-300"
-                                    : "bg-gray-50 hover:bg-gray-100 border border-transparent"
+                                    : discountUnlocked
+                                    ? "bg-gray-50 hover:bg-gray-100 border border-transparent"
+                                    : "bg-gray-50 border border-transparent"
                                 }`}
                               >
                                 <div className="flex flex-col">
