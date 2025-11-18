@@ -825,6 +825,8 @@ export default function SpoonityCalculator() {
     try {
       const { jsPDF } = window.jspdf as any;
       const doc = new jsPDF();
+      const discountAmount = feeBreakdown.discount || 0;
+      const subtotalBeforeDiscounts = monthlyFees + discountAmount;
 
       // Helper function to check if we need a new page
       const checkPageBreak = (requiredHeight: number) => {
@@ -1268,6 +1270,25 @@ export default function SpoonityCalculator() {
       y = checkPageBreak(30);
       y = addLine(20, y, 190);
       y += 8;
+
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(120, 120, 120);
+      doc.text("Subtotal (before discounts):", 20, y);
+      doc.setTextColor(40, 40, 40);
+      doc.text(formatCurrency(subtotalBeforeDiscounts), 190, y, {
+        align: "right",
+      });
+      y += 7;
+
+      if (discountAmount > 0) {
+        doc.setTextColor(120, 120, 120);
+        doc.text("Discounts Applied:", 20, y);
+        doc.setTextColor(22, 163, 74);
+        doc.text(`- ${formatCurrency(discountAmount)}`, 190, y, {
+          align: "right",
+        });
+        y += 7;
+      }
 
       doc.setFont("helvetica", "bold");
       doc.setTextColor(60, 60, 60);
@@ -1547,6 +1568,8 @@ export default function SpoonityCalculator() {
     try {
       const { jsPDF } = window.jspdf as any;
       const doc = new jsPDF();
+      const discountAmount = feeBreakdown.discount || 0;
+      const subtotalBeforeDiscounts = monthlyFees + discountAmount;
 
       // Helper function to check if we need a new page
       const checkPageBreak = (requiredHeight: number) => {
@@ -1990,6 +2013,25 @@ export default function SpoonityCalculator() {
       y = checkPageBreak(30);
       y = addLine(20, y, 190);
       y += 8;
+
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(120, 120, 120);
+      doc.text("Subtotal (before discounts):", 20, y);
+      doc.setTextColor(40, 40, 40);
+      doc.text(formatCurrency(subtotalBeforeDiscounts), 190, y, {
+        align: "right",
+      });
+      y += 7;
+
+      if (discountAmount > 0) {
+        doc.setTextColor(120, 120, 120);
+        doc.text("Discounts Applied:", 20, y);
+        doc.setTextColor(22, 163, 74);
+        doc.text(`- ${formatCurrency(discountAmount)}`, 190, y, {
+          align: "right",
+        });
+        y += 7;
+      }
 
       doc.setFont("helvetica", "bold");
       doc.setTextColor(60, 60, 60);
@@ -3610,6 +3652,24 @@ export default function SpoonityCalculator() {
                     </div>
                   </div>
 
+                  <div className="border-t pt-2 mt-2 flex justify-between text-sm">
+                    <span className="text-gray-600">
+                      Subtotal (before discounts):
+                    </span>
+                    <span className="font-medium">
+                      {formatCurrency(
+                        (monthlyFees || 0) + (feeBreakdown.discount || 0)
+                      )}
+                    </span>
+                  </div>
+                  {(feeBreakdown.discount || 0) > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Discounts Applied:</span>
+                      <span className="font-medium text-green-700">
+                        - {formatCurrency(feeBreakdown.discount)}
+                      </span>
+                    </div>
+                  )}
                   <div className="border-t pt-2 mt-2 flex justify-between font-medium">
                     <span>Monthly Recurring Fees:</span>
                     <span className="spoonity-primary-text">
