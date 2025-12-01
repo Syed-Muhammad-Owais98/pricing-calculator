@@ -2376,7 +2376,7 @@ export default function SpoonityCalculator() {
   // Function to get marketing email tier breakdown
   const getMarketingEmailBreakdown = (emailCount: number) => {
     // Licensed-based model: merchant is charged for committed volume
-    const baseFee = 500; // Base fee for all tiers
+    // First 10,000 emails are included in Marketing package, base fee of $500 applies to higher tiers
     const breakdown: Array<{
       range: string;
       count: number;
@@ -2395,7 +2395,7 @@ export default function SpoonityCalculator() {
         range: "0-10,000",
         rate: 0.0,
         volumeCost: 0,
-        totalCost: 500,
+        totalCost: 0, // Included in Marketing package base fee
       },
       {
         threshold: 100000,
@@ -2458,12 +2458,15 @@ export default function SpoonityCalculator() {
     // Add all tiers to breakdown, highlighting the selected one
     tiers.forEach((tier, index) => {
       const isSelected = index === selectedTierIndex;
+      // First tier (0-10,000) has no base fee as it's included in the Marketing package
+      // All other tiers have a $500 base fee
+      const tierBaseFee = index === 0 ? 0 : 500;
       breakdown.push({
         range: tier.range,
         count: isSelected ? emailCount : tier.threshold,
         rate: tier.rate,
         volumeCost: tier.volumeCost,
-        baseFee: baseFee,
+        baseFee: tierBaseFee,
         total: tier.totalCost,
         isSelected: isSelected,
         tierName: `Tier ${index + 1}`,
@@ -5341,6 +5344,14 @@ export default function SpoonityCalculator() {
                         <span>First Year Total:</span>
                         <span className="spoonity-primary-text">
                           {formatCurrency(monthlyFees * 12 + setupFees)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-sm mt-2">
+                        <span className="text-gray-600">Fee per Store:</span>
+                        <span className="font-medium">
+                          {formatCurrency(
+                            stores > 0 ? monthlyFees / stores : 0
+                          )}
                         </span>
                       </div>
                     </div>
