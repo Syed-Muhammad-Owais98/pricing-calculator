@@ -1,6 +1,24 @@
-"use client";
+﻿"use client";
 
 import React from "react";
+import { LoginForm } from "./components/calculator/LoginForm";
+import { CalculatorInputTab } from "./components/calculator/CalculatorInputTab";
+import {
+  smsRates,
+  planDetails,
+  countryDialCodes,
+  whatsappAvailableCountries,
+  whatsappRates,
+} from "./components/calculator/data";
+import { WhatsAppRates, PlanDetails } from "./components/calculator/types";
+import {
+  calculateConnectionFees,
+  getConnectionFeeBreakdown,
+  getTransactionFeeBreakdown,
+  getMarketingEmailBreakdown,
+  calculateWhatsappStoreFeeTiers,
+  formatCurrency,
+} from "./components/calculator/utils";
 
 // Declare window with jspdf property for TypeScript
 declare global {
@@ -100,113 +118,14 @@ export default function SpoonityCalculator() {
   const [whatsappOtp, setWhatsappOtp] = React.useState(0);
 
   // WhatsApp rates by country and message type
-  type WhatsAppRates = {
-    [key: string]: {
-      marketTicket: number;
-      utility: number;
-      marketing: number;
-      otp: number;
-    };
-  };
+
 
   // List of countries where WhatsApp is available
-  const whatsappAvailableCountries = [
-    "Argentina",
-    "Brazil",
-    "Chile",
-    "Colombia",
-    "Mexico",
-    "Peru",
-    "North America",
-    "Rest of Latin America",
-    // Added countries for Rest of Latam pricing
-    "Ecuador",
-    "Honduras",
-    "Guatemala",
-    "Costa Rica",
-    "Nicaragua",
-    "El Salvador",
-  ];
 
-  const whatsappRates: WhatsAppRates = {
-    Argentina: {
-      marketTicket: 0.0469, // Digital Receipts
-      utility: 0.06,
-      marketing: 0.09,
-      otp: 0.04,
-    },
-    Brazil: {
-      marketTicket: 0.0138, // Digital Receipts
-      utility: 0.02,
-      marketing: 0.09,
-      otp: 0.04,
-    },
-    Chile: {
-      marketTicket: 0.0276, // Digital Receipts
-      utility: 0.04,
-      marketing: 0.12,
-      otp: 0.05,
-    },
-    Colombia: {
-      marketTicket: 0.012, // Digital Receipts
-      utility: 0.03,
-      marketing: 0.04,
-      otp: 0.01,
-    },
-    Mexico: {
-      marketTicket: 0.0138, // Digital Receipts
-      utility: 0.03,
-      marketing: 0.07,
-      otp: 0.03,
-    },
-    Peru: {
-      marketTicket: 0.024, // Digital Receipts
-      utility: 0.04,
-      marketing: 0.08,
-      otp: 0.04,
-    },
-    "North America": {
-      marketTicket: 0.0138, // Digital Receipts
-      utility: 0.03,
-      marketing: 0.05,
-      otp: 0.02,
-    },
-    "Rest of Latin America": {
-      marketTicket: 0.0156, // Digital Receipts
-      utility: 0.03,
-      marketing: 0.11,
-      otp: 0.05,
-    },
-  };
 
-  // Map additional countries to "Rest of Latin America" rates
-  [
-    "Ecuador",
-    "Honduras",
-    "Guatemala",
-    "Costa Rica",
-    "Nicaragua",
-    "El Salvador",
-    "Chile",
-    "Colombia",
-  ].forEach((country) => {
-    whatsappRates[country] = whatsappRates["Rest of Latin America"];
-  });
 
-  // Calculate WhatsApp per-store fees based on tiered pricing
-  const calculateWhatsappStoreFeeTiers = (storeCount: number): number => {
-    let fee = 0;
-    if (storeCount <= 10) {
-      fee = storeCount * 9.0;
-    } else if (storeCount <= 80) {
-      fee = 10 * 9.0 + (storeCount - 10) * 8.1;
-    } else if (storeCount <= 149) {
-      fee = 10 * 9.0 + 70 * 8.1 + (storeCount - 80) * 7.2;
-    } else {
-      fee = 10 * 9.0 + 70 * 8.1 + 69 * 7.2 + (storeCount - 149) * 6.3;
-    }
-    return fee;
-  };
+
+
 
   // State for calculated values
   const [monthlyFees, setMonthlyFees] = React.useState(0);
@@ -268,68 +187,13 @@ export default function SpoonityCalculator() {
   });
 
   // Constants
-  const smsRates: Record<string, number> = {
-    USA: 0.01015,
-    Canada: 0.01015,
-    Mexico: 0.06849,
-    Argentina: 0.07967,
-    UAE: 0.1243,
-    Ecuador: 0.20303,
-    Australia: 0.039675,
-    Colombia: 0.00181,
-    Guatemala: 0.2415,
-    "Costa Rica": 0.0538,
-    Honduras: 0.13928,
-    Nicaragua: 0.12813,
-    "El Salvador": 0.076,
-    Chile: 0.05955,
-  };
+
 
   // Plan info
-  const planDetails: Record<
-    string,
-    { base: number; name: string; description: string; fullDescription: string }
-  > = {
-    loyalty: {
-      base: 1000,
-      name: "Spoonity Loyalty",
-      description: "Core loyalty functionality",
-      fullDescription:
-        "The Spoonity Loyalty plan provides a complete loyalty platform for your business. It includes a base license fee of $1,000/month plus per-store connection fees that scale based on volume. This plan includes unlimited users, CRM functionality, unlimited earning and spending rules, unlimited members, and standard reporting capabilities.",
-    },
-    marketing: {
-      base: 1500,
-      name: "Spoonity Marketing",
-      description: "Includes Loyalty + Marketing features",
-      fullDescription:
-        "The Spoonity Marketing plan includes all Loyalty features plus comprehensive marketing capabilities. It starts with a base license fee of $1,500/month plus per-store connection fees. Marketing emails use a licensed-based model with committed volume pricing: $500 base fee plus tier-based costs based on committed volumes.",
-    },
-    intelligence: {
-      base: 3000,
-      name: "Spoonity Intelligence",
-      description: "Includes Loyalty, Marketing + Analytics",
-      fullDescription:
-        "The Spoonity Intelligence plan is our most comprehensive offering. It includes all Loyalty and Marketing features plus advanced analytics. The base license fee is $3,000/month plus per-store connection fees. This plan includes 1 million transactions per month at no additional cost, with data processing fees for higher volumes. It includes comprehensive dashboards for customer analytics, loyalty segments, and cohort analysis.",
-    },
-  };
+
 
   // Country dial codes mapping
-  const countryDialCodes: Record<string, string> = {
-    USA: "+1",
-    Canada: "+1", // Added Canada dial code
-    Mexico: "+52",
-    Argentina: "+54",
-    UAE: "+971",
-    Ecuador: "+593",
-    Australia: "+61",
-    Colombia: "+57",
-    Guatemala: "+502",
-    "Costa Rica": "+506",
-    Honduras: "+504",
-    Nicaragua: "+505",
-    "El Salvador": "+503",
-    Chile: "+56",
-  };
+
 
   // Add custom font and jsPDF script
   React.useEffect(() => {
@@ -949,7 +813,7 @@ export default function SpoonityCalculator() {
       doc.setFont("helvetica", "normal");
       y += 6;
 
-      getConnectionFeeBreakdown(stores).forEach((tier: any) => {
+      getConnectionFeeBreakdown(stores, selectedConnectionTierIndex).forEach((tier: any) => {
         y = checkPageBreak(15);
         doc.setTextColor(120, 120, 120);
         doc.text(`${tier.tierName}: ${tier.range}`, 25, y);
@@ -2264,217 +2128,7 @@ export default function SpoonityCalculator() {
     }
   }, [stores]);
 
-  // Calculate connection fees and corporate/franchise split
-  const calculateConnectionFees = (storeCount: number): number => {
-    const tiers = [
-      { min: 0, max: 10, price: 150 },
-      { min: 11, max: 25, price: 135 },
-      { min: 26, max: 40, price: 121.5 },
-      { min: 41, max: 55, price: 109.35 },
-      { min: 56, max: 100, price: 98.42 },
-      { min: 101, max: 150, price: 88.57 },
-      { min: 151, max: 250, price: 79.72 },
-      { min: 251, max: 500, price: 71.74 },
-      { min: 501, max: 1000, price: 64.57 },
-      { min: 1001, max: 10000, price: 58.11 },
-    ];
 
-    // Use manually selected tier if available, otherwise find the applicable tier
-    let applicableTier = tiers[0];
-    if (
-      selectedConnectionTierIndex !== null &&
-      selectedConnectionTierIndex >= 0 &&
-      selectedConnectionTierIndex < tiers.length
-    ) {
-      applicableTier = tiers[selectedConnectionTierIndex];
-    } else {
-      // Find the applicable tier based on store count
-      for (const tier of tiers) {
-        if (storeCount >= tier.min && storeCount <= tier.max) {
-          applicableTier = tier;
-          break;
-        }
-      }
-    }
-
-    return storeCount * applicableTier.price;
-  };
-
-  // Function to get connection fee tier breakdown (detailed, highlights selected tier)
-  const getConnectionFeeBreakdown = (storeCount: number) => {
-    const tiers = [
-      { min: 0, max: 10, price: 150 },
-      { min: 11, max: 25, price: 135 },
-      { min: 26, max: 40, price: 121.5 },
-      { min: 41, max: 55, price: 109.35 },
-      { min: 56, max: 100, price: 98.42 },
-      { min: 101, max: 150, price: 88.57 },
-      { min: 151, max: 250, price: 79.72 },
-      { min: 251, max: 500, price: 71.74 },
-      { min: 501, max: 1000, price: 64.57 },
-      { min: 1001, max: 10000, price: 58.11 },
-    ];
-
-    // Use manually selected tier if available, otherwise find the applicable tier
-    let selectedTierIndex = 0;
-    if (
-      selectedConnectionTierIndex !== null &&
-      selectedConnectionTierIndex >= 0 &&
-      selectedConnectionTierIndex < tiers.length
-    ) {
-      selectedTierIndex = selectedConnectionTierIndex;
-    } else {
-      // Find the applicable tier based on store count
-      for (let i = 0; i < tiers.length; i++) {
-        const t = tiers[i];
-        if (storeCount >= t.min && storeCount <= t.max) {
-          selectedTierIndex = i;
-          break;
-        }
-      }
-    }
-
-    // Return all tiers, styled like Marketing breakdown
-    return tiers.map((tier, index) => {
-      const isSelected = index === selectedTierIndex;
-      // If this tier is selected, use actual store count; otherwise show tier max
-      const count = isSelected ? storeCount : tier.max;
-      return {
-        range: `${tier.min}-${tier.max}`,
-        count,
-        price: tier.price,
-        total: isSelected ? storeCount * tier.price : tier.max * tier.price,
-        isSelected,
-        tierName: `Tier ${index + 1}`,
-      } as any;
-    });
-  };
-
-  // Function to get transaction fee tier breakdown
-  const getTransactionFeeBreakdown = (transactionVolume: number) => {
-    let rate = 0.005; // Default rate
-    let range = "0-5,000";
-
-    if (transactionVolume > 50000) {
-      rate = 0.002;
-      range = "50,001+";
-    } else if (transactionVolume > 5000) {
-      rate = 0.003;
-      range = "5,001-50,000";
-    }
-
-    return [
-      {
-        range: range,
-        volume: transactionVolume,
-        rate: rate,
-        total: transactionVolume * rate,
-      },
-    ];
-  };
-
-  // Function to get marketing email tier breakdown
-  const getMarketingEmailBreakdown = (emailCount: number) => {
-    // Licensed-based model: merchant is charged for committed volume
-    // First 10,000 emails are included in Marketing package, base fee of $500 applies to higher tiers
-    const breakdown: Array<{
-      range: string;
-      count: number;
-      rate: number;
-      volumeCost: number;
-      baseFee: number;
-      total: number;
-      isSelected: boolean;
-      tierName: string;
-    }> = [];
-
-    // Define the new tier structure
-    const tiers = [
-      {
-        threshold: 10000,
-        range: "0-10,000",
-        rate: 0.0,
-        volumeCost: 0,
-        totalCost: 0, // Included in Marketing package base fee
-      },
-      {
-        threshold: 100000,
-        range: "10,001-100,000",
-        rate: 0.008,
-        volumeCost: 800,
-        totalCost: 1300,
-      },
-      {
-        threshold: 250000,
-        range: "100,001-250,000",
-        rate: 0.006,
-        volumeCost: 1500,
-        totalCost: 2000,
-      },
-      {
-        threshold: 500000,
-        range: "250,001-500,000",
-        rate: 0.0045,
-        volumeCost: 2250,
-        totalCost: 2750,
-      },
-      {
-        threshold: 1000000,
-        range: "500,001-1,000,000",
-        rate: 0.0034,
-        volumeCost: 3375,
-        totalCost: 3875,
-      },
-      {
-        threshold: 2500000,
-        range: "1,000,001-2,500,000",
-        rate: 0.0025,
-        volumeCost: 6328,
-        totalCost: 6828,
-      },
-      {
-        threshold: 10000000,
-        range: "2,500,001-10,000,000",
-        rate: 0.0022,
-        volumeCost: 21516,
-        totalCost: 22016,
-      },
-    ];
-
-    // Find the appropriate tier based on email count
-    let selectedTierIndex = 0;
-    for (let i = 0; i < tiers.length; i++) {
-      if (emailCount <= tiers[i].threshold) {
-        selectedTierIndex = i;
-        break;
-      }
-    }
-
-    // If email count exceeds the highest tier, use the highest tier
-    if (emailCount > tiers[tiers.length - 1].threshold) {
-      selectedTierIndex = tiers.length - 1;
-    }
-
-    // Add all tiers to breakdown, highlighting the selected one
-    tiers.forEach((tier, index) => {
-      const isSelected = index === selectedTierIndex;
-      // First tier (0-10,000) has no base fee as it's included in the Marketing package
-      // All other tiers have a $500 base fee
-      const tierBaseFee = index === 0 ? 0 : 500;
-      breakdown.push({
-        range: tier.range,
-        count: isSelected ? emailCount : tier.threshold,
-        rate: tier.rate,
-        volumeCost: tier.volumeCost,
-        baseFee: tierBaseFee,
-        total: tier.totalCost,
-        isSelected: isSelected,
-        tierName: `Tier ${index + 1}`,
-      });
-    });
-
-    return breakdown;
-  };
 
   // Calculate the fees
   function calculateFees() {
@@ -2482,7 +2136,10 @@ export default function SpoonityCalculator() {
     let monthly = planDetails[plan].base;
 
     // Connection fees (simplified tiered calculation)
-    let connectionFees = calculateConnectionFees(stores);
+    let connectionFees = calculateConnectionFees(
+      stores,
+      selectedConnectionTierIndex
+    );
     monthly += connectionFees;
 
     // Transaction fees (25% of total)
@@ -2750,15 +2407,7 @@ export default function SpoonityCalculator() {
     };
   }
 
-  // Format currency
-  function formatCurrency(amount: number): string {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(amount);
-  }
+
 
   // Update phone number when country changes
   React.useEffect(() => {
@@ -2921,264 +2570,31 @@ export default function SpoonityCalculator() {
   // Render email form if not logged in
   if (!isLoggedIn) {
     return (
-      <div className="w-full max-w-md mx-auto p-6">
-        <div className="border rounded-lg shadow-sm overflow-hidden">
-          <div className="spoonity-primary p-6 text-white text-center">
-            <h1 className="text-2xl font-bold mb-1">Spoonity</h1>
-            <p className="text-white opacity-90">Pricing Calculator</p>
-          </div>
-
-          <div className="p-4 border-b spoonity-form">
-            <h2 className="text-lg font-medium">
-              Please enter your information to continue
-            </h2>
-            <p className="text-sm text-gray-600">
-              We'll use this to provide you with a personalized quote
-            </p>
-          </div>
-
-          <form onSubmit={handleLogin} className="p-6 space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label
-                  className="block text-sm font-medium mb-1"
-                  htmlFor="token"
-                >
-                  Access Token
-                </label>
-                <input
-                  id="token"
-                  type="text"
-                  className={`w-full border rounded-md p-2.5 input-field ${
-                    tokenError ? "border-red-500" : ""
-                  }`}
-                  value={token}
-                  onChange={(e) => {
-                    setToken(e.target.value);
-                    setTokenError("");
-                  }}
-                  required
-                  placeholder="Enter your access token"
-                />
-                {tokenError && (
-                  <p className="text-red-500 text-xs mt-1">{tokenError}</p>
-                )}
-              </div>
-
-              <div>
-                <label
-                  className="block text-sm font-medium mb-1"
-                  htmlFor="country"
-                >
-                  Country
-                </label>
-                <select
-                  id="country"
-                  className="w-full border rounded-md p-2.5 input-field"
-                  value={country}
-                  onChange={(e) => {
-                    setCountry(e.target.value);
-                    if (e.target.value === "Other") {
-                      setOtherCountry("");
-                    }
-                  }}
-                  required
-                >
-                  {Object.keys(smsRates).map((countryName) => (
-                    <option key={countryName} value={countryName}>
-                      {countryName}
-                    </option>
-                  ))}
-                  <option value="Other">Other</option>
-                </select>
-              </div>
-
-              {country === "Other" && (
-                <div>
-                  <label
-                    className="block text-sm font-medium mb-1"
-                    htmlFor="otherCountry"
-                  >
-                    Please Specify Country
-                  </label>
-                  <input
-                    id="otherCountry"
-                    type="text"
-                    className="w-full border rounded-md p-2.5 input-field"
-                    value={otherCountry}
-                    onChange={(e) => setOtherCountry(e.target.value)}
-                    required
-                    placeholder="Enter your country"
-                  />
-                </div>
-              )}
-
-              <div>
-                <label
-                  className="block text-sm font-medium mb-1"
-                  htmlFor="firstName"
-                >
-                  First Name
-                </label>
-                <input
-                  id="firstName"
-                  type="text"
-                  className="w-full border rounded-md p-2.5 input-field"
-                  value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
-                  placeholder="John (optional)"
-                />
-              </div>
-
-              <div>
-                <label
-                  className="block text-sm font-medium mb-1"
-                  htmlFor="lastName"
-                >
-                  Last Name
-                </label>
-                <input
-                  id="lastName"
-                  type="text"
-                  className="w-full border rounded-md p-2.5 input-field"
-                  value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
-                  placeholder="Doe (optional)"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1" htmlFor="email">
-                Email Address
-              </label>
-              <input
-                id="email"
-                type="email"
-                className="w-full border rounded-md p-2.5 input-field"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com (optional)"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1" htmlFor="phone">
-                Cell Phone Number
-              </label>
-              <input
-                id="phone"
-                type="tel"
-                className="w-full border rounded-md p-2.5 input-field"
-                value={phone}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  // Only allow numbers and '+' symbol
-                  if (/^[+\d]*$/.test(value)) {
-                    setPhone(value);
-                  }
-                }}
-                placeholder={
-                  country !== "Other"
-                    ? `${countryDialCodes[country]} followed by your number (optional)`
-                    : "Enter phone number (optional)"
-                }
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                {country !== "Other"
-                  ? `Country code ${countryDialCodes[country]} will be automatically added`
-                  : "Please include country code"}
-              </p>
-            </div>
-
-            <div>
-              <label
-                className="block text-sm font-medium mb-1"
-                htmlFor="company"
-              >
-                Company Name
-              </label>
-              <input
-                id="company"
-                type="text"
-                className="w-full border rounded-md p-2.5 input-field"
-                value={company}
-                onChange={(e) => setCompany(e.target.value)}
-                placeholder="Spoonity (optional)"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1" htmlFor="role">
-                Your Role
-              </label>
-              <input
-                id="role"
-                type="text"
-                className="w-full border rounded-md p-2.5 input-field"
-                value={role}
-                onChange={(e) => setRole(e.target.value)}
-                placeholder="Marketing Manager (optional)"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1">
-                Business Type
-              </label>
-              <div className="flex space-x-4">
-                <div className="flex items-center">
-                  <input
-                    type="radio"
-                    id="corporate"
-                    name="businessType"
-                    value="corporate"
-                    checked={businessType === "corporate"}
-                    onChange={() => setBusinessType("corporate")}
-                    className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300"
-                  />
-                  <label
-                    htmlFor="corporate"
-                    className="ml-2 block text-sm text-gray-700"
-                  >
-                    Corporately Owned
-                  </label>
-                </div>
-                <div className="flex items-center">
-                  <input
-                    type="radio"
-                    id="franchise"
-                    name="businessType"
-                    value="franchise"
-                    checked={businessType === "franchise"}
-                    onChange={() => setBusinessType("franchise")}
-                    className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300"
-                  />
-                  <label
-                    htmlFor="franchise"
-                    className="ml-2 block text-sm text-gray-700"
-                  >
-                    Franchised
-                  </label>
-                </div>
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              className="w-full spoonity-cta text-white py-2.5 px-4 rounded-md font-medium transform transition duration-200 hover:scale-[1.02] active:scale-[0.98] shadow-sm"
-              onClick={handleLogin}
-            >
-              Access Calculator
-            </button>
-
-            <p className="text-xs text-gray-500 mt-4">
-              By continuing, you agree that we may use your information to
-              contact you about Spoonity services.
-            </p>
-          </form>
-        </div>
-      </div>
+      <LoginForm
+        token={token}
+        setToken={setToken}
+        tokenError={tokenError}
+        setTokenError={setTokenError}
+        country={country}
+        setCountry={setCountry}
+        otherCountry={otherCountry}
+        setOtherCountry={setOtherCountry}
+        firstName={firstName}
+        setFirstName={setFirstName}
+        lastName={lastName}
+        setLastName={setLastName}
+        email={email}
+        setEmail={setEmail}
+        phone={phone}
+        setPhone={setPhone}
+        company={company}
+        setCompany={setCompany}
+        role={role}
+        setRole={setRole}
+        businessType={businessType}
+        setBusinessType={setBusinessType}
+        onLogin={handleLogin}
+      />
     );
   }
 
@@ -3872,216 +3288,20 @@ export default function SpoonityCalculator() {
             </div>
           </div>
 
-          {/* Inputs Tab */}
-          {activeTab === "inputs" && (
-            <div className="p-6">
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Plan Type
-                  </label>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    {Object.entries(planDetails).map(([key, details]) => (
-                      <div
-                        key={key}
-                        onClick={() => setPlan(key)}
-                        className={`border rounded-lg p-4 cursor-pointer transition-all duration-200 ${
-                          plan === key
-                            ? "border-purple-500 bg-purple-50 shadow-sm"
-                            : "border-gray-200 hover:border-purple-300"
-                        }`}
-                      >
-                        <div className="flex items-start mb-2">
-                          <div
-                            className={`w-5 h-5 rounded-full border-2 flex-shrink-0 mt-0.5 mr-2 flex items-center justify-center ${
-                              plan === key
-                                ? "border-purple-500"
-                                : "border-gray-300"
-                            }`}
-                          >
-                            {plan === key && (
-                              <div
-                                className="w-3 h-3 rounded-full"
-                                style={{ backgroundColor: "#640C6F" }}
-                              ></div>
-                            )}
-                          </div>
-                          <div>
-                            <h3 className="font-medium">{details.name}</h3>
-                            <p className="text-sm text-gray-600">
-                              {details.description}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="text-right font-bold spoonity-primary-text">
-                          ${details.base}/mo
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="border-t pt-6">
-                  <label className="block text-sm font-medium mb-2">
-                    Number of Stores
-                  </label>
-                  <div className="space-y-3">
-                    <div className="flex items-center">
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        pattern="[0-9]*"
-                        className="w-full border rounded-md p-2.5 input-field text-lg font-medium"
-                        value={stores === 0 ? "" : stores}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          // Only allow numbers and convert to number
-                          if (/^\d*$/.test(value)) {
-                            setStores(value === "" ? 0 : parseInt(value));
-                          }
-                        }}
-                      />
-                    </div>
-
-                    <div className="flex flex-wrap gap-2">
-                      {[1, 5, 10, 25, 50, 100].map((value) => (
-                        <button
-                          key={value}
-                          onClick={() => setStores(value)}
-                          className={`px-3 py-1.5 rounded-md text-sm border transition-colors ${
-                            stores === value
-                              ? "bg-blue-100 border-blue-400 text-blue-700"
-                              : "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100"
-                          }`}
-                        >
-                          {value}
-                        </button>
-                      ))}
-                    </div>
-
-                    <p
-                      className={`text-xs ${
-                        stores > 50
-                          ? "text-amber-600 font-medium"
-                          : "text-gray-500"
-                      }`}
-                    >
-                      {stores > 50
-                        ? "⚠️ More than 50 stores requires an independent server (automatically added)"
-                        : "How many physical locations do you operate?"}
-                    </p>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Transactions per Store per Month
-                  </label>
-                  <div className="space-y-3">
-                    <div className="flex items-center">
-                      <input
-                        type="number"
-                        min="1"
-                        className="w-full border rounded-md p-2.5 input-field text-lg font-medium"
-                        value={transactions}
-                        onChange={(e) =>
-                          setTransactions(parseInt(e.target.value) || 0)
-                        }
-                      />
-                    </div>
-
-                    <div className="flex flex-wrap gap-2">
-                      {[500, 1000, 2500, 5000, 10000].map((value) => (
-                        <button
-                          key={value}
-                          onClick={() => setTransactions(value)}
-                          className={`px-3 py-1.5 rounded-md text-sm border transition-colors ${
-                            transactions === value
-                              ? "bg-purple-100 border-purple-400 spoonity-primary-text"
-                              : "spoonity-form border-gray-200 text-gray-700 hover:bg-gray-100"
-                          }`}
-                        >
-                          {value.toLocaleString()}
-                        </button>
-                      ))}
-                    </div>
-
-                    <p className="text-xs text-gray-500">
-                      Average number of transactions each location processes
-                      monthly
-                    </p>
-                  </div>
-                </div>
-
-                {plan !== "loyalty" && (
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      Marketing Messages per Month
-                    </label>
-                    <div className="space-y-3">
-                      <div className="flex items-center">
-                        <input
-                          type="number"
-                          min="0"
-                          className="w-full border rounded-md p-2.5 input-field text-lg font-medium"
-                          value={marketing}
-                          onChange={(e) =>
-                            setMarketing(parseInt(e.target.value) || 0)
-                          }
-                        />
-                      </div>
-
-                      <div className="flex flex-wrap gap-2">
-                        {[5000, 10000, 50000, 100000, 500000, 1000000].map(
-                          (value) => (
-                            <button
-                              key={value}
-                              onClick={() => setMarketing(value)}
-                              className={`px-3 py-1.5 rounded-md text-sm border transition-colors ${
-                                marketing === value
-                                  ? "bg-purple-100 border-purple-400 spoonity-primary-text"
-                                  : "spoonity-form border-gray-200 text-gray-700 hover:bg-gray-100"
-                              }`}
-                            >
-                              {value.toLocaleString()}
-                            </button>
-                          )
-                        )}
-                      </div>
-
-                      <p className="text-xs text-gray-500 mt-1">
-                        Tiered pricing: $0.0006 per email (first 100K), $0.0004
-                        (100K-1M), $0.0002 (1M+)
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex justify-end mt-2">
-                  <button
-                    className="spoonity-cta text-white font-medium py-2.5 px-4 rounded transition-colors duration-200 flex items-center"
-                    onClick={() => handleTabChange("addons")}
-                  >
-                    Continue to Add-ons
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-5 w-5 ml-1"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9 5l7 7-7 7"
-                      />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
+        {/* Inputs Tab */}
+        {activeTab === "inputs" && (
+          <CalculatorInputTab
+            plan={plan}
+            setPlan={setPlan}
+            stores={stores}
+            setStores={setStores}
+            transactions={transactions}
+            setTransactions={setTransactions}
+            marketing={marketing}
+            setMarketing={setMarketing}
+            handleTabChange={handleTabChange}
+          />
+        )}
 
           {/* Add-ons Tab */}
           {activeTab === "addons" && (
