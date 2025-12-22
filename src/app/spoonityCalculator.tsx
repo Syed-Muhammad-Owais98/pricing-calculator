@@ -1,10 +1,18 @@
 ﻿"use client";
 
 import React from "react";
+
+// Components
 import { LoginForm } from "./components/calculator/LoginForm";
 import { CalculatorInputTab } from "./components/calculator/CalculatorInputTab";
 import { AddOnsTab } from "./components/calculator/AddOnsTab";
 import { SummaryTab } from "./components/calculator/SummaryTab";
+import { SuccessScreen } from "./components/calculator/SuccessScreen";
+import { CalculatorHeader } from "./components/calculator/CalculatorHeader";
+import { CalculatorTabs } from "./components/calculator/CalculatorTabs";
+import { CalculatorFooter } from "./components/calculator/CalculatorFooter";
+
+// Data
 import {
   smsRates,
   planDetails,
@@ -12,42 +20,88 @@ import {
   whatsappAvailableCountries,
   whatsappRates,
 } from "./components/calculator/data";
-import {
-  WhatsAppRates,
-  PlanDetails,
-  FeeBreakdown,
-} from "./components/calculator/types";
+
+// Types
+import { FeeBreakdown } from "./components/calculator/types";
+
+// Utilities
 import {
   calculateConnectionFees,
-  getConnectionFeeBreakdown,
-  getTransactionFeeBreakdown,
   getMarketingEmailBreakdown,
   calculateWhatsappStoreFeeTiers,
   formatCurrency,
 } from "./components/calculator/utils";
+import {
+  generatePDF,
+  generatePDFAsBase64,
+} from "./components/calculator/pdfGenerator";
+import { generateQuoteDetails } from "./components/calculator/quoteUtils";
 
-// Declare window with jspdf property for TypeScript
-declare global {
-  interface Window {
-    jspdf?: {
-      jsPDF: new () => {
-        pages: any[];
-        setFontSize: (size: number) => void;
-        setFont: (font: string, style: string) => void;
-        text: (text: string, x: number, y: number, options?: any) => any;
-        splitTextToSize: (text: string, maxWidth: number) => string[];
-        save: (filename: string) => void;
-      };
-    };
-  }
-}
+// Hooks
+import { useStyles } from "./components/calculator/hooks/useStyles";
+import { useJsPdf } from "./components/calculator/hooks/useJsPdf";
 
-// This is the SpoonityCalculator component from your uploaded file
+// Constants
+import {
+  TOKEN_EXPIRY,
+  TOKEN_CHECK_INTERVAL,
+} from "./components/calculator/constants";
+
+// Initial fee breakdown state
+const initialFeeBreakdown: FeeBreakdown = {
+  total: 0,
+  subtotal: 0,
+  connection: 0,
+  baseLicense: 0,
+  transaction: 0,
+  marketing: 0,
+  giftCard: 0,
+  sms: 0,
+  whatsapp: {
+    base: 0,
+    perStore: 0,
+    messages: 0,
+    total: 0,
+  },
+  server: 0,
+  sla: 0,
+  cms: 0,
+  app: 0,
+  support: 0,
+  discount: 0,
+  itemDiscounts: 0,
+  subtotalDiscountAmount: 0,
+  net: {
+    baseLicense: 0,
+    connection: 0,
+    transaction: 0,
+    marketing: 0,
+    giftCard: 0,
+    sms: 0,
+    whatsapp: 0,
+    server: 0,
+    sla: 0,
+    cms: 0,
+    app: 0,
+    support: 0,
+  },
+  corporate: 0,
+  franchisee: 0,
+  franchiseePerStore: 0,
+  setup: {
+    total: 0,
+    onboarding: 0,
+    appSetup: 0,
+    dataIngestion: 0,
+  },
+};
+
 export default function SpoonityCalculator() {
-  // State to track if jsPDF is loaded
-  const [jsPdfLoaded, setJsPdfLoaded] = React.useState(false);
-  // State to track PDF generation
-  const [isPdfGenerating, setIsPdfGenerating] = React.useState(false);
+  // Apply custom styles
+  useStyles();
+
+  // PDF generation state
+  const { jsPdfLoaded, isPdfGenerating, setIsPdfGenerating } = useJsPdf();
 
   // State for user data
   const [firstName, setFirstName] = React.useState("");
@@ -56,7 +110,7 @@ export default function SpoonityCalculator() {
   const [phone, setPhone] = React.useState("");
   const [company, setCompany] = React.useState("");
   const [role, setRole] = React.useState("");
-  const [country, setCountry] = React.useState("USA"); // Default country
+  const [country, setCountry] = React.useState("USA");
   const [otherCountry, setOtherCountry] = React.useState("");
   const [isLoggedIn, setIsLoggedIn] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
@@ -65,14 +119,11 @@ export default function SpoonityCalculator() {
   const [webhookLogs, setWebhookLogs] = React.useState<
     Array<{ timestamp: string; message: string; data: any }>
   >([]);
-  const [showLogs, setShowLogs] = React.useState(false);
-  const [businessType, setBusinessType] = React.useState("corporate"); // 'corporate' or 'franchise'
+  const [businessType, setBusinessType] = React.useState("corporate");
 
   // Token related state
   const [token, setToken] = React.useState("");
   const [tokenError, setTokenError] = React.useState("");
-  const TOKEN_EXPIRY = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
-  const TOKEN_CHECK_INTERVAL = 10 * 60 * 1000; // 10 minutes in milliseconds
 
   // State for inputs
   const [plan, setPlan] = React.useState("loyalty");
@@ -81,7 +132,7 @@ export default function SpoonityCalculator() {
   const [marketing, setMarketing] = React.useState(10000);
   const [giftCard, setGiftCard] = React.useState(false);
   const [pushNotifications, setPushNotifications] = React.useState(false);
-  const [smsEnabled, setSmsEnabled] = React.useState(true); // Pre-select SMS
+  const [smsEnabled, setSmsEnabled] = React.useState(true);
   const [smsMessages, setSmsMessages] = React.useState("");
   const [smsCountry, setSmsCountry] = React.useState("USA");
   const [independentServer, setIndependentServer] = React.useState(false);
@@ -104,7 +155,6 @@ export default function SpoonityCalculator() {
     Record<string, { type: "percentage" | "fixed"; value: number }>
   >({});
   const [showItemDiscounts, setShowItemDiscounts] = React.useState(false);
-  // Apply/Clear workflow state
   const [discountsApplied, setDiscountsApplied] = React.useState(false);
   const [appliedItemDiscounts, setAppliedItemDiscounts] = React.useState<
     Record<string, { type: "percentage" | "fixed"; value: number }>
@@ -123,290 +173,35 @@ export default function SpoonityCalculator() {
   const [whatsappMarketing, setWhatsappMarketing] = React.useState(0);
   const [whatsappOtp, setWhatsappOtp] = React.useState(0);
 
-  // WhatsApp rates by country and message type
-
-  // List of countries where WhatsApp is available
-
   // State for calculated values
   const [monthlyFees, setMonthlyFees] = React.useState(0);
   const [setupFees, setSetupFees] = React.useState(0);
   const [perStore, setPerStore] = React.useState(0);
   const [activeTab, setActiveTab] = React.useState("inputs");
   const [totalBeforeSupport, setTotalBeforeSupport] = React.useState(0);
-  // State for manually selected connection fee tier (null = auto-select based on store count)
   const [selectedConnectionTierIndex, setSelectedConnectionTierIndex] =
     React.useState<number | null>(null);
+  const [feeBreakdown, setFeeBreakdown] =
+    React.useState<FeeBreakdown>(initialFeeBreakdown);
 
-  // State for fee breakdown
-  const [feeBreakdown, setFeeBreakdown] = React.useState({
-    total: 0,
-    subtotal: 0,
-    connection: 0,
-    baseLicense: 0,
-    transaction: 0,
-    marketing: 0,
-    giftCard: 0,
-    sms: 0,
-    whatsapp: {
-      base: 0,
-      perStore: 0,
-      messages: 0,
-      total: 0,
-    },
-    server: 0,
-    sla: 0,
-    cms: 0,
-    app: 0,
-    support: 0,
-    discount: 0,
-    itemDiscounts: 0,
-    subtotalDiscountAmount: 0,
-    net: {
-      baseLicense: 0,
-      connection: 0,
-      transaction: 0,
-      marketing: 0,
-      giftCard: 0,
-      sms: 0,
-      whatsapp: 0,
-      server: 0,
-      sla: 0,
-      cms: 0,
-      app: 0,
-      support: 0,
-    },
-    corporate: 0,
-    franchisee: 0,
-    franchiseePerStore: 0,
-    setup: {
-      total: 0,
-      onboarding: 0,
-      appSetup: 0,
-      dataIngestion: 0,
-    },
-  });
-
-  // Constants
-
-  // Plan info
-
-  // Country dial codes mapping
-
-  // Add custom font and jsPDF script
-  React.useEffect(() => {
-    // Add Google Fonts link
-    const link = document.createElement("link");
-    link.href =
-      "https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&display=swap";
-    link.rel = "stylesheet";
-    document.head.appendChild(link);
-
-    // Add custom CSS for font and improved styling
-    const style = document.createElement("style");
-    style.textContent = `
-      * {
-        font-family: 'Figtree', sans-serif;
-      }
-      
-      .input-field {
-        transition: border-color 0.2s ease;
-      }
-      
-      .input-field:focus {
-        border-color: #640C6F;
-        box-shadow: 0 0 0 2px rgba(100, 12, 111, 0.2);
-        outline: none;
-      }
-      
-      .tab-button {
-        position: relative;
-        transition: all 0.2s ease;
-      }
-      
-      .tab-button::after {
-        content: '';
-        position: absolute;
-        bottom: -2px;
-        left: 0;
-        width: 100%;
-        height: 2px;
-        background-color: transparent;
-        transition: background-color 0.2s ease;
-      }
-      
-      .tab-button.active::after {
-        background-color: #640C6F;
-      }
-      
-      .checkbox-custom {
-        appearance: none;
-        width: 18px;
-        height: 18px;
-        border: 2px solid #CBD5E1;
-        border-radius: 4px;
-        margin-right: 8px;
-        position: relative;
-        transition: all 0.2s ease;
-        cursor: pointer;
-      }
-      
-      .checkbox-custom:checked {
-        background-color: #640C6F;
-        border-color: #640C6F;
-      }
-      
-      .checkbox-custom:checked::after {
-        content: '';
-        position: absolute;
-        left: 5px;
-        top: 2px;
-        width: 6px;
-        height: 10px;
-        border: solid white;
-        border-width: 0 2px 2px 0;
-        transform: rotate(45deg);
-      }
-      
-      .checkbox-custom:disabled {
-        background-color: #F7F7F7;
-        border-color: #CBD5E1;
-        cursor: not-allowed;
-      }
-
-      /* Custom brand colors */
-      .spoonity-primary {
-        background-color: #640C6F;
-      }
-      
-      .spoonity-cta {
-        background-color: #FF7E3D;
-      }
-      
-      .spoonity-cta:hover {
-        background-color: #e86d2f;
-      }
-      
-      .spoonity-form {
-        background-color: #F7F7F7;
-      }
-      
-      .spoonity-primary-text {
-        color: #640C6F;
-      }
-      
-      .spoonity-cta-text {
-        color: #FF7E3D;
-      }
-    `;
-    document.head.appendChild(style);
-
-    // Load jsPDF from CDN
-    const script = document.createElement("script");
-    script.src =
-      "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
-    script.async = true;
-    script.onload = () => {
-      console.log("jsPDF loaded successfully");
-      setJsPdfLoaded(true);
-    };
-    script.onerror = () => {
-      console.error("Failed to load jsPDF from CDN");
-      // Fallback to mock as a last resort
-      window.jspdf = {
-        jsPDF: class MockJsPDF {
-          pages: any[];
-
-          constructor() {
-            this.pages = [];
-            console.log("MockJsPDF created as fallback");
-          }
-
-          setFontSize(size: number): void {
-            console.log("Setting font size:", size);
-          }
-
-          setFont(font: string, style: string): void {
-            console.log("Setting font:", font, style);
-          }
-
-          text(text: string, x: number, y: number, options?: any): any {
-            console.log("Adding text:", text, "at position:", x, y, options);
-            return this;
-          }
-
-          splitTextToSize(text: string, maxWidth: number): string[] {
-            console.log("Splitting text to size:", maxWidth);
-            const words = text.split(" ");
-            const lines: string[] = [];
-            let currentLine = "";
-
-            words.forEach((word) => {
-              if ((currentLine + word).length > maxWidth / 6) {
-                lines.push(currentLine);
-                currentLine = word + " ";
-              } else {
-                currentLine += word + " ";
-              }
-            });
-
-            if (currentLine) lines.push(currentLine);
-            return lines.length ? lines : [text];
-          }
-
-          save(filename: string): void {
-            console.log("PDF would be saved as:", filename);
-            alert(
-              `Your quote has been prepared! In a production environment, this would download a PDF file named: ${filename}`
-            );
-          }
-        },
-      };
-      setJsPdfLoaded(true);
-    };
-    document.head.appendChild(script);
-
-    // Cleanup
-    return () => {
-      document.head.removeChild(link);
-      document.head.removeChild(style);
-      if (document.head.contains(script)) {
-        document.head.removeChild(script);
-      }
-    };
-  }, []);
-
-  // Validate email format
-  const validateEmail = (email: string): boolean => {
-    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return re.test(email);
-  };
-
-  // Function to validate token
+  // Token validation function
   const validateToken = async (inputToken: string): Promise<boolean> => {
     try {
-      // First, try to decode the Base64 string
       const decodedString = atob(inputToken);
-
-      // Then parse the JSON
       const tokenData = JSON.parse(decodedString);
-
-      // Check if the token contains the required paraphrase and is not expired
       const paraphraseCheck =
         tokenData.paraphrase === "client-specific-encrypt-key";
       const expiryCheck = new Date(tokenData.expiresAt) > new Date();
-
-      const isValid = paraphraseCheck && expiryCheck;
-
-      return isValid;
+      return paraphraseCheck && expiryCheck;
     } catch (error) {
       console.error("Error validating token:", error);
       return false;
     }
   };
 
-  // Function to save token and user data to localStorage
+  // Save token and user data to localStorage
   const saveTokenAndData = (
-    token: string,
+    tokenValue: string,
     userData?: {
       firstName?: string;
       lastName?: string;
@@ -419,7 +214,7 @@ export default function SpoonityCalculator() {
     }
   ) => {
     const expiryTime = Date.now() + TOKEN_EXPIRY;
-    localStorage.setItem("spoonity_token", token);
+    localStorage.setItem("spoonity_token", tokenValue);
     localStorage.setItem("spoonity_token_expiry", expiryTime.toString());
     localStorage.setItem(
       "spoonity_user_data",
@@ -437,11 +232,65 @@ export default function SpoonityCalculator() {
     );
   };
 
-  // Function to check token expiry
+  // Reset all states function
+  const resetAllStates = () => {
+    localStorage.clear();
+    setFirstName("");
+    setLastName("");
+    setEmail("");
+    setPhone("");
+    setCompany("");
+    setRole("");
+    setCountry("USA");
+    setOtherCountry("");
+    setBusinessType("corporate");
+    setToken("");
+    setTokenError("");
+    setPlan("loyalty");
+    setStores(10);
+    setTransactions(1000);
+    setMarketing(10000);
+    setGiftCard(false);
+    setPushNotifications(false);
+    setSmsEnabled(true);
+    setSmsMessages("");
+    setSmsCountry("USA");
+    setIndependentServer(false);
+    setPremiumSupport(false);
+    setPremiumSLA(false);
+    setCms(false);
+    setAppType("none");
+    setDataIngestion(false);
+    setWhatsappEnabled(false);
+    setWhatsappCountry("Mexico");
+    setWhatsappMarketTicket(0);
+    setWhatsappUtility(0);
+    setWhatsappMarketing(0);
+    setWhatsappOtp(0);
+    setDiscountPassword("");
+    setDiscountUnlocked(false);
+    setShowDiscountInput(false);
+    setSubtotalDiscount({ type: "percentage", value: 0 });
+    setDiscountReason("");
+    setItemDiscounts({});
+    setShowItemDiscounts(false);
+    setMonthlyFees(0);
+    setSetupFees(0);
+    setPerStore(0);
+    setActiveTab("inputs");
+    setTotalBeforeSupport(0);
+    setFeeBreakdown(initialFeeBreakdown);
+    setIsLoggedIn(false);
+    setSubmitSuccess(false);
+    setIsSubmitting(false);
+    setSubmitError("");
+    setWebhookLogs([]);
+  };
+
+  // Check token expiry
   const checkTokenExpiry = () => {
     const expiryTime = localStorage.getItem("spoonity_token_expiry");
     if (expiryTime && parseInt(expiryTime) < Date.now()) {
-      // Token expired
       localStorage.removeItem("spoonity_token");
       localStorage.removeItem("spoonity_token_expiry");
       localStorage.removeItem("spoonity_user_data");
@@ -462,7 +311,6 @@ export default function SpoonityCalculator() {
       parseInt(expiryTime) > Date.now() &&
       userData
     ) {
-      // Token is valid, restore user data
       const parsedUserData = JSON.parse(userData);
       setFirstName(parsedUserData.firstName);
       setLastName(parsedUserData.lastName);
@@ -480,10 +328,7 @@ export default function SpoonityCalculator() {
       setIsLoggedIn(true);
     }
 
-    // Set up interval to check token expiry
     const intervalId = setInterval(checkTokenExpiry, TOKEN_CHECK_INTERVAL);
-
-    // Cleanup interval on component unmount
     return () => clearInterval(intervalId);
   }, []);
 
@@ -502,7 +347,6 @@ export default function SpoonityCalculator() {
   const handleLogin = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
 
-    // Required field validations
     if (token.trim() === "") {
       setTokenError("Please enter your access token");
       return;
@@ -521,41 +365,28 @@ export default function SpoonityCalculator() {
       return;
     }
 
-    // Validate token
     const isValidToken = await validateToken(token);
     if (!isValidToken) {
       setTokenError("Invalid access token");
       return;
     }
 
-    // Apply defaults for optional fields if empty
     const finalFirstName = firstName.trim() === "" ? "John" : firstName.trim();
     const finalLastName = lastName.trim() === "" ? "Doe" : lastName.trim();
     const finalCompany = company.trim() === "" ? "Spoonity" : company.trim();
 
-    // Update state with defaults if needed
-    if (firstName.trim() === "") {
-      setFirstName("John");
-    }
-    if (lastName.trim() === "") {
-      setLastName("Doe");
-    }
-    if (company.trim() === "") {
-      setCompany("Spoonity");
-    }
+    if (firstName.trim() === "") setFirstName("John");
+    if (lastName.trim() === "") setLastName("Doe");
+    if (company.trim() === "") setCompany("Spoonity");
 
-    // If validation passes, set initial values based on country selection
     if (country === "Other") {
-      // If "Other" country, initialize SMS to false and disabled
       setSmsEnabled(false);
       setSmsMessages("");
-      setSmsCountry("USA"); // Default, but will be disabled
+      setSmsCountry("USA");
     } else {
-      // Set the SMS country to match the selected country
       setSmsCountry(country);
     }
 
-    // Save token and user data (using final values with defaults)
     saveTokenAndData(token, {
       firstName: finalFirstName,
       lastName: finalLastName,
@@ -567,1401 +398,91 @@ export default function SpoonityCalculator() {
       businessType,
     });
 
-    // If validation passes, set logged in to true and scroll to top
     setIsLoggedIn(true);
-    // Use setTimeout to ensure the new content is rendered before scrolling
     setTimeout(() => {
-      window.scrollTo({
-        top: 0,
-        behavior: "smooth",
-      });
-    }, 100);
-  };
-
-  // Function to get quote information structured for display or PDF
-  const getQuoteDetails = () => {
-    const addOns = [];
-
-    if (giftCard) {
-      addOns.push(`Gift Card Base Fee: ${formatCurrency(500)}`);
-      addOns.push(
-        `Gift Card Per-Store Fee (${stores} stores @ $30/store): ${formatCurrency(
-          stores * 30
-        )}`
-      );
-    }
-
-    if (smsEnabled) {
-      addOns.push(
-        `SMS Platform (${smsCountry}): ${formatCurrency(
-          feeBreakdown.sms
-        )}/month`
-      );
-    }
-
-    if (whatsappEnabled) {
-      addOns.push(`WhatsApp Base Platform Fee: ${formatCurrency(630)}/month`);
-      addOns.push(
-        `WhatsApp Per-Store Fee (${stores} stores): ${formatCurrency(
-          feeBreakdown.whatsapp.perStore
-        )}/month`
-      );
-      addOns.push(`WhatsApp Message Fees (${whatsappCountry}):`);
-      addOns.push(
-        `  • Digital Receipts: ${formatCurrency(
-          whatsappMarketTicket * whatsappRates[whatsappCountry].marketTicket
-        )}/month`
-      );
-      addOns.push(
-        `  • Utility Messages: ${formatCurrency(
-          whatsappUtility * whatsappRates[whatsappCountry].utility
-        )}/month`
-      );
-      addOns.push(
-        `  • Marketing Messages: ${formatCurrency(
-          whatsappMarketing * whatsappRates[whatsappCountry].marketing
-        )}/month`
-      );
-      addOns.push(
-        `  • OTP Messages: ${formatCurrency(
-          whatsappOtp * whatsappRates[whatsappCountry].otp
-        )}/month`
-      );
-    }
-
-    if (appType !== "none") {
-      addOns.push(
-        `Mobile App (${appType}): ${formatCurrency(feeBreakdown.app)}/month`
-      );
-    }
-
-    if (independentServer) {
-      addOns.push(
-        `Independent Server: ${formatCurrency(feeBreakdown.server)}/month`
-      );
-    }
-
-    if (premiumSLA) {
-      addOns.push(`Premium SLA: ${formatCurrency(feeBreakdown.sla)}/month`);
-    }
-
-    if (plan === "loyalty") {
-      addOns.push(
-        `Loyalty Program: ${formatCurrency(feeBreakdown.baseLicense)}/month`
-      );
-    }
-
-    if (marketing) {
-      addOns.push(
-        `Marketing Platform: ${formatCurrency(feeBreakdown.marketing)}/month`
-      );
-    }
-
-    if (cms) {
-      addOns.push(
-        `Content Management System: ${formatCurrency(feeBreakdown.cms)}/month`
-      );
-    }
-
-    if (premiumSupport) {
-      addOns.push(
-        `Premium Support: ${formatCurrency(feeBreakdown.support)}/month`
-      );
-    }
-
-    return addOns;
-  };
-
-  // Function to display quote information as text
-  const displayQuoteDetails = () => {
-    return getQuoteDetails();
-  };
-
-  // Function to generate and download PDF
-  const generatePDF = () => {
-    if (!jsPdfLoaded) {
-      alert("PDF generation is loading. Please try again in a moment.");
-      return;
-    }
-    try {
-      const { jsPDF } = window.jspdf as any;
-      const doc = new jsPDF();
-      const discountAmount = feeBreakdown.discount || 0;
-      const subtotalBeforeDiscounts = monthlyFees + discountAmount;
-
-      // Helper function to check if we need a new page
-      const checkPageBreak = (requiredHeight: number) => {
-        const pageHeight = doc.internal.pageSize.height;
-        const margin = 20;
-
-        if (y + requiredHeight > pageHeight - margin) {
-          doc.addPage();
-          return 20; // Reset Y to top of new page
-        }
-        return y;
-      };
-
-      // Helper function to add text with page break check
-      const addText = (text: string, x: number, y: number, options?: any) => {
-        const newY = checkPageBreak(10);
-        doc.text(text, x, newY, options);
-        return newY + 10;
-      };
-
-      // Helper function to add line with page break check
-      const addLine = (x1: number, y: number, x2: number) => {
-        const newY = checkPageBreak(5);
-        doc.line(x1, newY, x2, newY);
-        return newY + 5;
-      };
-
-      let y = 20;
-
-      // --- HEADER (Purple) ---
-      doc.setFillColor(159, 98, 166); // #9F62A6
-      doc.rect(10, y, 190, 30, "F");
-      doc.setTextColor(255, 255, 255);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(18);
-      doc.text(planDetails[plan].name, 20, y + 18);
-      doc.setFontSize(22);
-      doc.text(`${formatCurrency(monthlyFees)}`, 180, y + 18, {
-        align: "right",
-      });
-      doc.setFontSize(10);
-      doc.text("/month", 180, y + 24, { align: "right" });
-
-      y = 60;
-
-      // --- Plan Description ---
-      doc.setTextColor(60, 60, 60);
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(11);
-      const descLines = doc.splitTextToSize(
-        planDetails[plan].fullDescription,
-        170
-      );
-      const descHeight = descLines.length * 5 + 8;
-
-      y = checkPageBreak(descHeight + 20);
-      doc.setFillColor(247, 247, 247); // #F7F7F7
-      doc.roundedRect(15, y, 180, descHeight, 3, 3, "F");
-      doc.text(descLines, 20, y + 8);
-      y += descHeight + 10;
-
-      // --- Basic Fee Breakdown ---
-      y = checkPageBreak(50);
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(120, 120, 120);
-      doc.text("Base License Fee:", 20, y);
-      doc.setTextColor(40, 40, 40);
-      doc.text(formatCurrency(planDetails[plan].base), 190, y, {
-        align: "right",
-      });
-      y += 7;
-
-      doc.setTextColor(120, 120, 120);
-      doc.text(`Connection Fees (${stores} stores):`, 20, y);
-      doc.setTextColor(40, 40, 40);
-      doc.text(formatCurrency(feeBreakdown.connection), 190, y, {
-        align: "right",
-      });
-      y += 7;
-
-      doc.setTextColor(120, 120, 120);
-      doc.text("Transaction Processing:", 20, y);
-      doc.setTextColor(40, 40, 40);
-      doc.text(formatCurrency(feeBreakdown.transaction), 190, y, {
-        align: "right",
-      });
-      y += 7;
-
-      if (plan !== "loyalty") {
-        doc.setTextColor(120, 120, 120);
-        doc.text("Marketing Platform:", 20, y);
-        doc.setTextColor(40, 40, 40);
-        doc.text(formatCurrency(feeBreakdown.marketing), 190, y, {
-          align: "right",
-        });
-        y += 7;
-
-        if (pushNotifications) {
-          doc.setTextColor(120, 120, 120);
-          doc.text("Push Notifications:", 20, y);
-          doc.setTextColor(40, 40, 40);
-          doc.text(formatCurrency(marketing * 0.0045), 190, y, {
-            align: "right",
-          });
-          y += 7;
-        }
-      }
-
-      // --- Tier Breakdowns ---
-      y = checkPageBreak(20);
-      doc.setDrawColor(230, 230, 230);
-      doc.line(20, y, 190, y);
-      y += 6;
-
-      // Connection Fee Tier Breakdown
-      y = checkPageBreak(30);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(60, 60, 60);
-      doc.text("Connection Fee Breakdown:", 20, y);
-      doc.setFont("helvetica", "normal");
-      y += 6;
-
-      getConnectionFeeBreakdown(stores, selectedConnectionTierIndex).forEach(
-        (tier: any) => {
-          y = checkPageBreak(15);
-          doc.setTextColor(120, 120, 120);
-          doc.text(`${tier.tierName}: ${tier.range}`, 25, y);
-          y += 5;
-          doc.text(
-            tier.isSelected
-              ? `${tier.count.toLocaleString()} stores (your volume)`
-              : `Up to ${tier.count.toLocaleString()} stores`,
-            30,
-            y
-          );
-          y += 5;
-          doc.setTextColor(40, 40, 40);
-          doc.text(`$${tier.price.toFixed(2)}/store`, 190, y - 10, {
-            align: "right",
-          });
-          if (tier.isSelected) {
-            doc.setTextColor(128, 0, 128);
-            doc.text("(Selected)", 190, y - 5, { align: "right" });
-          }
-          y += 10;
-        }
-      );
-
-      // Transaction Processing Tier Breakdown
-      y = checkPageBreak(30);
-      y = addLine(20, y, 190);
-      y += 6;
-
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(60, 60, 60);
-      doc.text("Transaction Processing Breakdown:", 20, y);
-      doc.setFont("helvetica", "normal");
-      y += 6;
-
-      y = checkPageBreak(10);
-      doc.setTextColor(120, 120, 120);
-      doc.text(
-        `Total Volume: ${Math.round(
-          0.25 * (stores * transactions)
-        ).toLocaleString()} transactions`,
-        25,
-        y
-      );
-      y += 5;
-
-      getTransactionFeeBreakdown(0.25 * (stores * transactions)).forEach(
-        (tier) => {
-          y = checkPageBreak(10);
-          doc.setTextColor(120, 120, 120);
-          doc.text(
-            `${tier.volume.toLocaleString()} transactions ($${tier.rate.toFixed(
-              3
-            )}/transaction):`,
-            25,
-            y
-          );
-          doc.setTextColor(40, 40, 40);
-          doc.text(formatCurrency(tier.total), 190, y, { align: "right" });
-          y += 5;
-        }
-      );
-
-      // Marketing Email Tier Breakdown
-      if (plan !== "loyalty") {
-        y = checkPageBreak(30);
-        y = addLine(20, y, 190);
-        y += 6;
-
-        doc.setFont("helvetica", "bold");
-        doc.setTextColor(60, 60, 60);
-        doc.text("Marketing Email Breakdown:", 20, y);
-        doc.setFont("helvetica", "normal");
-        y += 6;
-
-        y = checkPageBreak(10);
-        doc.setTextColor(120, 120, 120);
-        doc.text(`Total Emails: ${marketing.toLocaleString()}`, 25, y);
-        y += 5;
-
-        getMarketingEmailBreakdown(marketing).forEach((tier) => {
-          y = checkPageBreak(15);
-          doc.setTextColor(120, 120, 120);
-          doc.text(`${tier.tierName}: ${tier.range}`, 25, y);
-          y += 5;
-          doc.text(
-            tier.isSelected
-              ? `${tier.count.toLocaleString()} emails (your volume)`
-              : `Up to ${tier.count.toLocaleString()} emails`,
-            30,
-            y
-          );
-          doc.setTextColor(40, 40, 40);
-          doc.text(formatCurrency(tier.total), 190, y - 5, { align: "right" });
-          doc.setTextColor(120, 120, 120);
-          doc.text("($500 base fee included)", 190, y, { align: "right" });
-          if (tier.isSelected) {
-            doc.setTextColor(128, 0, 128);
-            doc.text("(Selected)", 190, y + 5, { align: "right" });
-            y += 15;
-          } else {
-            y += 12;
-          }
-        });
-      }
-
-      // --- Add-ons Section ---
-      if (
-        giftCard ||
-        smsEnabled ||
-        whatsappEnabled ||
-        independentServer ||
-        premiumSLA ||
-        premiumSupport ||
-        cms ||
-        appType !== "none" ||
-        dataIngestion
-      ) {
-        y = checkPageBreak(30);
-        y = addLine(20, y, 190);
-        y += 6;
-
-        doc.setFont("helvetica", "bold");
-        doc.setTextColor(60, 60, 60);
-        doc.text("Add-on Services:", 20, y);
-        doc.setFont("helvetica", "normal");
-        y += 6;
-
-        if (giftCard) {
-          y = checkPageBreak(15);
-          doc.setTextColor(120, 120, 120);
-          doc.text("Gift Card Base Fee:", 25, y);
-          doc.setTextColor(40, 40, 40);
-          doc.text(formatCurrency(500), 190, y, { align: "right" });
-          y += 6;
-
-          y = checkPageBreak(10);
-          doc.setTextColor(120, 120, 120);
-          doc.text(
-            `Gift Card Per-Store Fee (${stores} stores @ $30/store):`,
-            25,
-            y
-          );
-          doc.setTextColor(40, 40, 40);
-          doc.text(formatCurrency(stores * 30), 190, y, { align: "right" });
-          y += 6;
-        }
-
-        if (smsEnabled && smsMessages && parseInt(smsMessages) > 0) {
-          y = checkPageBreak(10);
-          doc.setTextColor(120, 120, 120);
-          doc.text(`SMS Platform (${smsCountry}):`, 25, y);
-          doc.setTextColor(40, 40, 40);
-          doc.text(formatCurrency(feeBreakdown.sms), 190, y, {
-            align: "right",
-          });
-          y += 6;
-        }
-
-        if (whatsappEnabled) {
-          y = checkPageBreak(10);
-          doc.setTextColor(120, 120, 120);
-          doc.text("WhatsApp Base Platform Fee:", 25, y);
-          doc.setTextColor(40, 40, 40);
-          doc.text(formatCurrency(630), 190, y, { align: "right" });
-          y += 6;
-
-          y = checkPageBreak(10);
-          doc.setTextColor(120, 120, 120);
-          doc.text(`WhatsApp Per-Store Fee (${stores} stores):`, 25, y);
-          doc.setTextColor(40, 40, 40);
-          doc.text(formatCurrency(feeBreakdown.whatsapp.perStore), 190, y, {
-            align: "right",
-          });
-          y += 6;
-
-          y = checkPageBreak(10);
-          doc.setTextColor(120, 120, 120);
-          doc.text(`WhatsApp Message Fees (${whatsappCountry}):`, 25, y);
-          doc.setTextColor(40, 40, 40);
-          doc.text(formatCurrency(feeBreakdown.whatsapp.messages), 190, y, {
-            align: "right",
-          });
-          y += 6;
-        }
-
-        if (independentServer) {
-          y = checkPageBreak(10);
-          doc.setTextColor(120, 120, 120);
-          doc.text("Independent Server:", 25, y);
-          doc.setTextColor(40, 40, 40);
-          doc.text(formatCurrency(feeBreakdown.server), 190, y, {
-            align: "right",
-          });
-          y += 6;
-        }
-
-        if (premiumSLA) {
-          y = checkPageBreak(10);
-          doc.setTextColor(120, 120, 120);
-          doc.text("Premium SLA:", 25, y);
-          doc.setTextColor(40, 40, 40);
-          doc.text(formatCurrency(feeBreakdown.sla), 190, y, {
-            align: "right",
-          });
-          y += 6;
-        }
-
-        if (cms) {
-          y = checkPageBreak(10);
-          doc.setTextColor(120, 120, 120);
-          doc.text("Content Management System:", 25, y);
-          doc.setTextColor(40, 40, 40);
-          doc.text(formatCurrency(feeBreakdown.cms), 190, y, {
-            align: "right",
-          });
-          y += 6;
-        }
-
-        if (appType !== "none") {
-          y = checkPageBreak(10);
-          doc.setTextColor(120, 120, 120);
-          doc.text(`Mobile App (${appType}):`, 25, y);
-          doc.setTextColor(40, 40, 40);
-          doc.text(formatCurrency(feeBreakdown.app), 190, y, {
-            align: "right",
-          });
-          y += 6;
-        }
-
-        if (premiumSupport) {
-          y = checkPageBreak(10);
-          doc.setTextColor(120, 120, 120);
-          doc.text("Premium Support:", 25, y);
-          doc.setTextColor(40, 40, 40);
-          doc.text(formatCurrency(feeBreakdown.support), 190, y, {
-            align: "right",
-          });
-          y += 6;
-        }
-
-        if (dataIngestion) {
-          y = checkPageBreak(10);
-          doc.setTextColor(120, 120, 120);
-          doc.text("Data Ingestion:", 25, y);
-          doc.setTextColor(40, 40, 40);
-          doc.text(
-            formatCurrency(
-              (monthlyFees - (premiumSupport ? 2000 + monthlyFees * 0.1 : 0)) *
-                0.2
-            ),
-            190,
-            y,
-            { align: "right" }
-          );
-          y += 6;
-        }
-      }
-
-      // --- Setup Fee Breakdown ---
-      y = checkPageBreak(30);
-      y = addLine(20, y, 190);
-      y += 6;
-
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(60, 60, 60);
-      doc.text("Setup Fee Breakdown:", 20, y);
-      doc.setFont("helvetica", "normal");
-      y += 6;
-
-      y = checkPageBreak(10);
-      doc.setTextColor(120, 120, 120);
-      doc.text("Onboarding (3 months of monthly fees):", 25, y);
-      doc.setTextColor(40, 40, 40);
-      doc.text(formatCurrency(feeBreakdown.setup.onboarding), 190, y, {
-        align: "right",
-      });
-      y += 5;
-
-      if (appType === "premium") {
-        y = checkPageBreak(10);
-        doc.setTextColor(120, 120, 120);
-        doc.text("Premium App Setup:", 25, y);
-        doc.setTextColor(40, 40, 40);
-        doc.text(formatCurrency(15000), 190, y, { align: "right" });
-        y += 5;
-      }
-
-      if (appType === "standard") {
-        y = checkPageBreak(10);
-        doc.setTextColor(120, 120, 120);
-        doc.text("Standard App Setup:", 25, y);
-        doc.setTextColor(40, 40, 40);
-        doc.text(formatCurrency(5000), 190, y, { align: "right" });
-        y += 5;
-      }
-
-      if (appType === "pwa") {
-        y = checkPageBreak(10);
-        doc.setTextColor(120, 120, 120);
-        doc.text("PWA Setup:", 25, y);
-        doc.setTextColor(40, 40, 40);
-        doc.text(formatCurrency(1000), 190, y, { align: "right" });
-        y += 5;
-      }
-
-      if (dataIngestion) {
-        y = checkPageBreak(10);
-        doc.setTextColor(120, 120, 120);
-        doc.text("Data Ingestion Setup:", 25, y);
-        doc.setTextColor(40, 40, 40);
-        doc.text(formatCurrency(feeBreakdown.setup.dataIngestion), 190, y, {
-          align: "right",
-        });
-        y += 5;
-      }
-
-      // --- Totals ---
-      y = checkPageBreak(30);
-      y = addLine(20, y, 190);
-      y += 8;
-
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(120, 120, 120);
-      doc.text("Subtotal (before discounts):", 20, y);
-      doc.setTextColor(40, 40, 40);
-      doc.text(formatCurrency(subtotalBeforeDiscounts), 190, y, {
-        align: "right",
-      });
-      y += 7;
-
-      if (discountAmount > 0) {
-        doc.setTextColor(120, 120, 120);
-        doc.text("Discounts Applied:", 20, y);
-        doc.setTextColor(22, 163, 74);
-        doc.text(`- ${formatCurrency(discountAmount)}`, 190, y, {
-          align: "right",
-        });
-        y += 7;
-      }
-
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(60, 60, 60);
-      doc.text("Monthly Recurring Fees:", 20, y);
-      doc.setTextColor(100, 12, 111); // #640C6F
-      doc.text(formatCurrency(monthlyFees), 190, y, { align: "right" });
-      y += 7;
-
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(120, 120, 120);
-      doc.text("Setup Fees:", 20, y);
-      doc.setTextColor(40, 40, 40);
-      doc.text(formatCurrency(setupFees), 190, y, { align: "right" });
-      y += 7;
-
-      y = addLine(20, y, 190);
-      y += 8;
-
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(60, 60, 60);
-      doc.text("First Year Total:", 20, y);
-      doc.setTextColor(100, 12, 111);
-      doc.text(formatCurrency(monthlyFees * 12 + setupFees), 190, y, {
-        align: "right",
-      });
-
-      // --- Disclaimer (Gray Box) ---
-      y = checkPageBreak(30);
-      doc.setFillColor(247, 247, 247);
-      doc.roundedRect(15, y, 180, 18, 2, 2, "F");
-      doc.setTextColor(120, 120, 120);
-      doc.setFont("helvetica", "normal");
-      const disclaimer =
-        "This is an estimated quote based on the information provided. A Spoonity representative will contact you to provide a final quote and answer any questions. Pricing is subject to change based on specific requirements and contract terms.";
-      const disclaimerLines = doc.splitTextToSize(disclaimer, 170);
-      doc.text(disclaimerLines, 20, y + 7);
-
-      // --- Save ---
-      const filename = `Spoonity_Quote_${firstName.replace(
-        /\s+/g,
-        "_"
-      )}_${lastName.replace(/\s+/g, "_")}_${
-        new Date().toISOString().split("T")[0]
-      }.pdf`;
-      doc.save(filename);
-    } catch (error) {
-      alert("Failed to generate PDF. Please try again or contact support.");
-    }
-  };
-
-  // Enhanced PDF generation with loading state
-  const generatePDFWithLoading = () => {
-    if (!jsPdfLoaded) {
-      alert("PDF generation is loading. Please try again in a moment.");
-      return;
-    }
-
-    setIsPdfGenerating(true);
-
-    // Use setTimeout to allow React to render the loading state
-    setTimeout(() => {
-      try {
-        generatePDF();
-      } catch (error) {
-        console.error("Error in PDF generation:", error);
-        alert("There was an error generating your PDF. Please try again.");
-      } finally {
-        setIsPdfGenerating(false);
-      }
+      window.scrollTo({ top: 0, behavior: "smooth" });
     }, 100);
   };
 
   // Helper function to add a log entry
   const addLog = (message: string, data: any = null): void => {
     const timestamp = new Date().toISOString();
-    const logEntry = {
-      timestamp,
-      message,
-      data,
-    };
-    setWebhookLogs((prevLogs) => [...prevLogs, logEntry]);
+    setWebhookLogs((prevLogs) => [...prevLogs, { timestamp, message, data }]);
     console.log(`[${timestamp}] ${message}`, data || "");
-  };
-
-  // Function to generate comprehensive quote details for webhook
-  const generateQuoteDetails = () => {
-    const quoteDetails = {
-      plan: {
-        name: planDetails[plan].name,
-        type: plan,
-        baseFee: formatCurrency(planDetails[plan].base),
-        description: planDetails[plan].description,
-      },
-      business: {
-        stores: stores,
-        transactionsPerStore: transactions,
-        totalTransactions: stores * transactions,
-        businessType: businessType,
-      },
-      marketing:
-        plan !== "loyalty"
-          ? {
-              emails: marketing,
-              pushNotifications: pushNotifications,
-              pushNotificationCost: pushNotifications
-                ? formatCurrency(marketing * 0.0045)
-                : "$0.00",
-            }
-          : null,
-      fees: {
-        baseLicense: formatCurrency(planDetails[plan].base),
-        connectionFees: formatCurrency(feeBreakdown.connection),
-        transactionProcessing: formatCurrency(feeBreakdown.transaction),
-        marketingFees:
-          plan !== "loyalty" ? formatCurrency(feeBreakdown.marketing) : "$0.00",
-        totalMonthly: formatCurrency(monthlyFees),
-        setupFees: formatCurrency(setupFees),
-        firstYearTotal: formatCurrency(monthlyFees * 12 + setupFees),
-      },
-      tierBreakdowns: {
-        connectionFees: getConnectionFeeBreakdown(
-          stores,
-          selectedConnectionTierIndex
-        ).map((tier) => ({
-          range: tier.range,
-          count: tier.count,
-          pricePerStore: `$${tier.price}`,
-          total: formatCurrency(tier.total),
-        })),
-        transactionProcessing: getTransactionFeeBreakdown(
-          0.25 * (stores * transactions)
-        ).map((tier) => ({
-          range: tier.range,
-          volume: tier.volume.toLocaleString(),
-          ratePerTransaction: `$${tier.rate.toFixed(3)}`,
-          total: formatCurrency(tier.total),
-        })),
-        marketingEmails:
-          plan !== "loyalty"
-            ? getMarketingEmailBreakdown(marketing).map((tier) => ({
-                tierName: tier.tierName,
-                range: tier.range,
-                count: tier.count.toLocaleString(),
-                ratePerThousand: `$${(tier.rate * 1000).toFixed(1)}`,
-                total: formatCurrency(tier.total),
-                isSelected: tier.isSelected,
-              }))
-            : [],
-      },
-      addOns: {
-        giftCard: giftCard
-          ? {
-              enabled: true,
-              baseFee: formatCurrency(500),
-              perStoreFee: formatCurrency(stores * 30),
-              total: formatCurrency(500 + stores * 30),
-            }
-          : { enabled: false },
-        sms:
-          smsEnabled && smsMessages && parseInt(smsMessages) > 0
-            ? {
-                enabled: true,
-                country: smsCountry,
-                messages: parseInt(smsMessages),
-                rate: `$${smsRates[smsCountry].toFixed(5)}`,
-                total: formatCurrency(feeBreakdown.sms),
-              }
-            : { enabled: false },
-        whatsapp: whatsappEnabled
-          ? {
-              enabled: true,
-              country: whatsappCountry,
-              baseFee: formatCurrency(630),
-              perStoreFee: formatCurrency(feeBreakdown.whatsapp.perStore),
-              messages: {
-                digitalReceipts: {
-                  count: whatsappMarketTicket,
-                  rate: `$${whatsappRates[whatsappCountry].marketTicket.toFixed(
-                    4
-                  )}`,
-                  cost: formatCurrency(
-                    whatsappMarketTicket *
-                      whatsappRates[whatsappCountry].marketTicket
-                  ),
-                },
-                utility: {
-                  count: whatsappUtility,
-                  rate: `$${whatsappRates[whatsappCountry].utility.toFixed(2)}`,
-                  cost: formatCurrency(
-                    whatsappUtility * whatsappRates[whatsappCountry].utility
-                  ),
-                },
-                marketing: {
-                  count: whatsappMarketing,
-                  rate: `$${whatsappRates[whatsappCountry].marketing.toFixed(
-                    2
-                  )}`,
-                  cost: formatCurrency(
-                    whatsappMarketing * whatsappRates[whatsappCountry].marketing
-                  ),
-                },
-                otp: {
-                  count: whatsappOtp,
-                  rate: `$${whatsappRates[whatsappCountry].otp.toFixed(2)}`,
-                  cost: formatCurrency(
-                    whatsappOtp * whatsappRates[whatsappCountry].otp
-                  ),
-                },
-              },
-              total: formatCurrency(feeBreakdown.whatsapp.total),
-            }
-          : { enabled: false },
-        independentServer: {
-          enabled: independentServer,
-          cost: independentServer
-            ? formatCurrency(feeBreakdown.server)
-            : "$0.00",
-        },
-        premiumSLA: {
-          enabled: premiumSLA,
-          cost: premiumSLA ? formatCurrency(feeBreakdown.sla) : "$0.00",
-        },
-        premiumSupport: {
-          enabled: premiumSupport,
-          cost: premiumSupport ? formatCurrency(feeBreakdown.support) : "$0.00",
-        },
-        cms: {
-          enabled: cms,
-          cost: cms ? formatCurrency(feeBreakdown.cms) : "$0.00",
-        },
-        app:
-          appType !== "none"
-            ? {
-                type: appType,
-                cost: formatCurrency(feeBreakdown.app),
-              }
-            : { enabled: false },
-        dataIngestion: {
-          enabled: dataIngestion,
-          cost: dataIngestion
-            ? formatCurrency(
-                (monthlyFees -
-                  (premiumSupport ? 2000 + monthlyFees * 0.1 : 0)) *
-                  0.2
-              )
-            : "$0.00",
-        },
-      },
-      setupFees: {
-        onboarding: formatCurrency(feeBreakdown.setup.onboarding),
-        appSetup:
-          appType === "premium"
-            ? formatCurrency(15000)
-            : appType === "standard"
-            ? formatCurrency(5000)
-            : appType === "pwa"
-            ? formatCurrency(1000)
-            : "$0.00",
-        dataIngestion: dataIngestion
-          ? formatCurrency(feeBreakdown.setup.dataIngestion)
-          : "$0.00",
-        total: formatCurrency(setupFees),
-      },
-      summary: {
-        monthlyRecurringFees: formatCurrency(monthlyFees),
-        setupFees: formatCurrency(setupFees),
-        firstYearTotal: formatCurrency(monthlyFees * 12 + setupFees),
-        perStoreCost: formatCurrency(perStore),
-      },
-    };
-
-    return quoteDetails;
-  };
-
-  // Function to generate PDF as base64 string for webhook
-  const generatePDFAsBase64 = (): string => {
-    if (!jsPdfLoaded) {
-      return "";
-    }
-    try {
-      const { jsPDF } = window.jspdf as any;
-      const doc = new jsPDF();
-      const discountAmount = feeBreakdown.discount || 0;
-      const subtotalBeforeDiscounts = monthlyFees + discountAmount;
-
-      // Helper function to check if we need a new page
-      const checkPageBreak = (requiredHeight: number) => {
-        const pageHeight = doc.internal.pageSize.height;
-        const margin = 20;
-
-        if (y + requiredHeight > pageHeight - margin) {
-          doc.addPage();
-          return 20; // Reset Y to top of new page
-        }
-        return y;
-      };
-
-      // Helper function to add text with page break check
-      const addText = (text: string, x: number, y: number, options?: any) => {
-        const newY = checkPageBreak(10);
-        doc.text(text, x, newY, options);
-        return newY + 10;
-      };
-
-      // Helper function to add line with page break check
-      const addLine = (x1: number, y: number, x2: number) => {
-        const newY = checkPageBreak(5);
-        doc.line(x1, newY, x2, newY);
-        return newY + 5;
-      };
-
-      let y = 20;
-
-      // --- HEADER (Purple) ---
-      doc.setFillColor(159, 98, 166); // #9F62A6
-      doc.rect(10, y, 190, 30, "F");
-      doc.setTextColor(255, 255, 255);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(18);
-      doc.text(planDetails[plan].name, 20, y + 18);
-      doc.setFontSize(22);
-      doc.text(`${formatCurrency(monthlyFees)}`, 180, y + 18, {
-        align: "right",
-      });
-      doc.setFontSize(10);
-      doc.text("/month", 180, y + 24, { align: "right" });
-
-      y = 60;
-
-      // --- Plan Description ---
-      doc.setTextColor(60, 60, 60);
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(11);
-      const descLines = doc.splitTextToSize(
-        planDetails[plan].fullDescription,
-        170
-      );
-      const descHeight = descLines.length * 5 + 8;
-
-      y = checkPageBreak(descHeight + 20);
-      doc.setFillColor(247, 247, 247); // #F7F7F7
-      doc.roundedRect(15, y, 180, descHeight, 3, 3, "F");
-      doc.text(descLines, 20, y + 8);
-      y += descHeight + 10;
-
-      // --- Basic Fee Breakdown ---
-      y = checkPageBreak(50);
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(120, 120, 120);
-      doc.text("Base License Fee:", 20, y);
-      doc.setTextColor(40, 40, 40);
-      doc.text(formatCurrency(planDetails[plan].base), 190, y, {
-        align: "right",
-      });
-      y += 7;
-
-      doc.setTextColor(120, 120, 120);
-      doc.text(`Connection Fees (${stores} stores):`, 20, y);
-      doc.setTextColor(40, 40, 40);
-      doc.text(formatCurrency(feeBreakdown.connection), 190, y, {
-        align: "right",
-      });
-      y += 7;
-
-      doc.setTextColor(120, 120, 120);
-      doc.text("Transaction Processing:", 20, y);
-      doc.setTextColor(40, 40, 40);
-      doc.text(formatCurrency(feeBreakdown.transaction), 190, y, {
-        align: "right",
-      });
-      y += 7;
-
-      if (plan !== "loyalty") {
-        doc.setTextColor(120, 120, 120);
-        doc.text("Marketing Platform:", 20, y);
-        doc.setTextColor(40, 40, 40);
-        doc.text(formatCurrency(feeBreakdown.marketing), 190, y, {
-          align: "right",
-        });
-        y += 7;
-
-        if (pushNotifications) {
-          doc.setTextColor(120, 120, 120);
-          doc.text("Push Notifications:", 20, y);
-          doc.setTextColor(40, 40, 40);
-          doc.text(formatCurrency(marketing * 0.0045), 190, y, {
-            align: "right",
-          });
-          y += 7;
-        }
-      }
-
-      // --- Tier Breakdowns ---
-      y = checkPageBreak(20);
-      doc.setDrawColor(230, 230, 230);
-      doc.line(20, y, 190, y);
-      y += 6;
-
-      // Connection Fee Tier Breakdown
-      y = checkPageBreak(30);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(60, 60, 60);
-      doc.text("Connection Fee Breakdown:", 20, y);
-      doc.setFont("helvetica", "normal");
-      y += 6;
-
-      getConnectionFeeBreakdown(stores, selectedConnectionTierIndex).forEach(
-        (tier: any) => {
-          y = checkPageBreak(15);
-          doc.setTextColor(120, 120, 120);
-          doc.text(`${tier.tierName}: ${tier.range}`, 25, y);
-          y += 5;
-          doc.text(
-            tier.isSelected
-              ? `${tier.count.toLocaleString()} stores (your volume)`
-              : `Up to ${tier.count.toLocaleString()} stores`,
-            30,
-            y
-          );
-          y += 5;
-          doc.setTextColor(40, 40, 40);
-          doc.text(`$${tier.price.toFixed(2)}/store`, 190, y - 10, {
-            align: "right",
-          });
-          if (tier.isSelected) {
-            doc.setTextColor(128, 0, 128);
-            doc.text("(Selected)", 190, y - 5, { align: "right" });
-          }
-          y += 10;
-        }
-      );
-
-      // Transaction Processing Tier Breakdown
-      y = checkPageBreak(30);
-      y = addLine(20, y, 190);
-      y += 6;
-
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(60, 60, 60);
-      doc.text("Transaction Processing Breakdown:", 20, y);
-      doc.setFont("helvetica", "normal");
-      y += 6;
-
-      y = checkPageBreak(10);
-      doc.setTextColor(120, 120, 120);
-      doc.text(
-        `Total Volume: ${Math.round(
-          0.25 * (stores * transactions)
-        ).toLocaleString()} transactions`,
-        25,
-        y
-      );
-      y += 5;
-
-      getTransactionFeeBreakdown(0.25 * (stores * transactions)).forEach(
-        (tier) => {
-          y = checkPageBreak(10);
-          doc.setTextColor(120, 120, 120);
-          doc.text(
-            `${tier.volume.toLocaleString()} transactions ($${tier.rate.toFixed(
-              3
-            )}/transaction):`,
-            25,
-            y
-          );
-          doc.setTextColor(40, 40, 40);
-          doc.text(formatCurrency(tier.total), 190, y, { align: "right" });
-          y += 5;
-        }
-      );
-
-      // Marketing Email Tier Breakdown
-      if (plan !== "loyalty") {
-        y = checkPageBreak(30);
-        y = addLine(20, y, 190);
-        y += 6;
-
-        doc.setFont("helvetica", "bold");
-        doc.setTextColor(60, 60, 60);
-        doc.text("Marketing Email Breakdown:", 20, y);
-        doc.setFont("helvetica", "normal");
-        y += 6;
-
-        y = checkPageBreak(10);
-        doc.setTextColor(120, 120, 120);
-        doc.text(`Total Emails: ${marketing.toLocaleString()}`, 25, y);
-        y += 5;
-
-        getMarketingEmailBreakdown(marketing).forEach((tier) => {
-          y = checkPageBreak(15);
-          doc.setTextColor(120, 120, 120);
-          doc.text(`${tier.tierName}: ${tier.range}`, 25, y);
-          y += 5;
-          doc.text(
-            tier.isSelected
-              ? `${tier.count.toLocaleString()} emails (your volume)`
-              : `Up to ${tier.count.toLocaleString()} emails`,
-            30,
-            y
-          );
-          doc.setTextColor(40, 40, 40);
-          doc.text(formatCurrency(tier.total), 190, y - 5, { align: "right" });
-          doc.setTextColor(120, 120, 120);
-          doc.text("($500 base fee included)", 190, y, { align: "right" });
-          if (tier.isSelected) {
-            doc.setTextColor(128, 0, 128);
-            doc.text("(Selected)", 190, y + 5, { align: "right" });
-            y += 15;
-          } else {
-            y += 12;
-          }
-        });
-      }
-
-      // --- Add-ons Section ---
-      if (
-        giftCard ||
-        smsEnabled ||
-        whatsappEnabled ||
-        independentServer ||
-        premiumSLA ||
-        premiumSupport ||
-        cms ||
-        appType !== "none" ||
-        dataIngestion
-      ) {
-        y = checkPageBreak(30);
-        y = addLine(20, y, 190);
-        y += 6;
-
-        doc.setFont("helvetica", "bold");
-        doc.setTextColor(60, 60, 60);
-        doc.text("Add-on Services:", 20, y);
-        doc.setFont("helvetica", "normal");
-        y += 6;
-
-        if (giftCard) {
-          y = checkPageBreak(15);
-          doc.setTextColor(120, 120, 120);
-          doc.text("Gift Card Base Fee:", 25, y);
-          doc.setTextColor(40, 40, 40);
-          doc.text(formatCurrency(500), 190, y, { align: "right" });
-          y += 6;
-
-          y = checkPageBreak(10);
-          doc.setTextColor(120, 120, 120);
-          doc.text(
-            `Gift Card Per-Store Fee (${stores} stores @ $30/store):`,
-            25,
-            y
-          );
-          doc.setTextColor(40, 40, 40);
-          doc.text(formatCurrency(stores * 30), 190, y, { align: "right" });
-          y += 6;
-        }
-
-        if (smsEnabled && smsMessages && parseInt(smsMessages) > 0) {
-          y = checkPageBreak(10);
-          doc.setTextColor(120, 120, 120);
-          doc.text(`SMS Platform (${smsCountry}):`, 25, y);
-          doc.setTextColor(40, 40, 40);
-          doc.text(formatCurrency(feeBreakdown.sms), 190, y, {
-            align: "right",
-          });
-          y += 6;
-        }
-
-        if (whatsappEnabled) {
-          y = checkPageBreak(10);
-          doc.setTextColor(120, 120, 120);
-          doc.text("WhatsApp Base Platform Fee:", 25, y);
-          doc.setTextColor(40, 40, 40);
-          doc.text(formatCurrency(630), 190, y, { align: "right" });
-          y += 6;
-
-          y = checkPageBreak(10);
-          doc.setTextColor(120, 120, 120);
-          doc.text(`WhatsApp Per-Store Fee (${stores} stores):`, 25, y);
-          doc.setTextColor(40, 40, 40);
-          doc.text(formatCurrency(feeBreakdown.whatsapp.perStore), 190, y, {
-            align: "right",
-          });
-          y += 6;
-
-          y = checkPageBreak(10);
-          doc.setTextColor(120, 120, 120);
-          doc.text(`WhatsApp Message Fees (${whatsappCountry}):`, 25, y);
-          doc.setTextColor(40, 40, 40);
-          doc.text(formatCurrency(feeBreakdown.whatsapp.messages), 190, y, {
-            align: "right",
-          });
-          y += 6;
-        }
-
-        if (independentServer) {
-          y = checkPageBreak(10);
-          doc.setTextColor(120, 120, 120);
-          doc.text("Independent Server:", 25, y);
-          doc.setTextColor(40, 40, 40);
-          doc.text(formatCurrency(feeBreakdown.server), 190, y, {
-            align: "right",
-          });
-          y += 6;
-        }
-
-        if (premiumSLA) {
-          y = checkPageBreak(10);
-          doc.setTextColor(120, 120, 120);
-          doc.text("Premium SLA:", 25, y);
-          doc.setTextColor(40, 40, 40);
-          doc.text(formatCurrency(feeBreakdown.sla), 190, y, {
-            align: "right",
-          });
-          y += 6;
-        }
-
-        if (cms) {
-          y = checkPageBreak(10);
-          doc.setTextColor(120, 120, 120);
-          doc.text("Content Management System:", 25, y);
-          doc.setTextColor(40, 40, 40);
-          doc.text(formatCurrency(feeBreakdown.cms), 190, y, {
-            align: "right",
-          });
-          y += 6;
-        }
-
-        if (appType !== "none") {
-          y = checkPageBreak(10);
-          doc.setTextColor(120, 120, 120);
-          doc.text(`Mobile App (${appType}):`, 25, y);
-          doc.setTextColor(40, 40, 40);
-          doc.text(formatCurrency(feeBreakdown.app), 190, y, {
-            align: "right",
-          });
-          y += 6;
-        }
-
-        if (premiumSupport) {
-          y = checkPageBreak(10);
-          doc.setTextColor(120, 120, 120);
-          doc.text("Premium Support:", 25, y);
-          doc.setTextColor(40, 40, 40);
-          doc.text(formatCurrency(feeBreakdown.support), 190, y, {
-            align: "right",
-          });
-          y += 6;
-        }
-
-        if (dataIngestion) {
-          y = checkPageBreak(10);
-          doc.setTextColor(120, 120, 120);
-          doc.text("Data Ingestion:", 25, y);
-          doc.setTextColor(40, 40, 40);
-          doc.text(
-            formatCurrency(
-              (monthlyFees - (premiumSupport ? 2000 + monthlyFees * 0.1 : 0)) *
-                0.2
-            ),
-            190,
-            y,
-            { align: "right" }
-          );
-          y += 6;
-        }
-      }
-
-      // --- Setup Fee Breakdown ---
-      y = checkPageBreak(30);
-      y = addLine(20, y, 190);
-      y += 6;
-
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(60, 60, 60);
-      doc.text("Setup Fee Breakdown:", 20, y);
-      doc.setFont("helvetica", "normal");
-      y += 6;
-
-      y = checkPageBreak(10);
-      doc.setTextColor(120, 120, 120);
-      doc.text("Onboarding (3 months of monthly fees):", 25, y);
-      doc.setTextColor(40, 40, 40);
-      doc.text(formatCurrency(feeBreakdown.setup.onboarding), 190, y, {
-        align: "right",
-      });
-      y += 5;
-
-      if (appType === "premium") {
-        y = checkPageBreak(10);
-        doc.setTextColor(120, 120, 120);
-        doc.text("Premium App Setup:", 25, y);
-        doc.setTextColor(40, 40, 40);
-        doc.text(formatCurrency(15000), 190, y, { align: "right" });
-        y += 5;
-      }
-
-      if (appType === "standard") {
-        y = checkPageBreak(10);
-        doc.setTextColor(120, 120, 120);
-        doc.text("Standard App Setup:", 25, y);
-        doc.setTextColor(40, 40, 40);
-        doc.text(formatCurrency(5000), 190, y, { align: "right" });
-        y += 5;
-      }
-
-      if (appType === "pwa") {
-        y = checkPageBreak(10);
-        doc.setTextColor(120, 120, 120);
-        doc.text("PWA Setup:", 25, y);
-        doc.setTextColor(40, 40, 40);
-        doc.text(formatCurrency(1000), 190, y, { align: "right" });
-        y += 5;
-      }
-
-      if (dataIngestion) {
-        y = checkPageBreak(10);
-        doc.setTextColor(120, 120, 120);
-        doc.text("Data Ingestion Setup:", 25, y);
-        doc.setTextColor(40, 40, 40);
-        doc.text(formatCurrency(feeBreakdown.setup.dataIngestion), 190, y, {
-          align: "right",
-        });
-        y += 5;
-      }
-
-      // --- Totals ---
-      y = checkPageBreak(30);
-      y = addLine(20, y, 190);
-      y += 8;
-
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(120, 120, 120);
-      doc.text("Subtotal (before discounts):", 20, y);
-      doc.setTextColor(40, 40, 40);
-      doc.text(formatCurrency(subtotalBeforeDiscounts), 190, y, {
-        align: "right",
-      });
-      y += 7;
-
-      if (discountAmount > 0) {
-        doc.setTextColor(120, 120, 120);
-        doc.text("Discounts Applied:", 20, y);
-        doc.setTextColor(22, 163, 74);
-        doc.text(`- ${formatCurrency(discountAmount)}`, 190, y, {
-          align: "right",
-        });
-        y += 7;
-      }
-
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(60, 60, 60);
-      doc.text("Monthly Recurring Fees:", 20, y);
-      doc.setTextColor(100, 12, 111); // #640C6F
-      doc.text(formatCurrency(monthlyFees), 190, y, { align: "right" });
-      y += 7;
-
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(120, 120, 120);
-      doc.text("Setup Fees:", 20, y);
-      doc.setTextColor(40, 40, 40);
-      doc.text(formatCurrency(setupFees), 190, y, { align: "right" });
-      y += 7;
-
-      y = addLine(20, y, 190);
-      y += 8;
-
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(60, 60, 60);
-      doc.text("First Year Total:", 20, y);
-      doc.setTextColor(100, 12, 111);
-      doc.text(formatCurrency(monthlyFees * 12 + setupFees), 190, y, {
-        align: "right",
-      });
-
-      // --- Disclaimer (Gray Box) ---
-      y = checkPageBreak(30);
-      doc.setFillColor(247, 247, 247);
-      doc.roundedRect(15, y, 180, 18, 2, 2, "F");
-      doc.setTextColor(120, 120, 120);
-      doc.setFont("helvetica", "normal");
-      const disclaimer =
-        "This is an estimated quote based on the information provided. A Spoonity representative will contact you to provide a final quote and answer any questions. Pricing is subject to change based on specific requirements and contract terms.";
-      const disclaimerLines = doc.splitTextToSize(disclaimer, 170);
-      doc.text(disclaimerLines, 20, y + 7);
-
-      // Generate base64 string instead of saving
-      const pdfOutput = doc.output("datauristring");
-      return pdfOutput.split(",")[1]; // Remove the data:application/pdf;base64, prefix
-    } catch (error) {
-      console.error("Error generating PDF for webhook:", error);
-      return "";
-    }
   };
 
   // Submit data to webhook
   const submitData = async (): Promise<void> => {
-    // Prevent double submission
     if (isSubmitting) return;
 
     setIsSubmitting(true);
     setSubmitError("");
-    setWebhookLogs([]); // Clear previous logs
+    setWebhookLogs([]);
 
-    // Generate comprehensive quote details
-    const quoteDetails = generateQuoteDetails();
+    const quoteDetails = generateQuoteDetails({
+      plan,
+      stores,
+      transactions,
+      marketing,
+      monthlyFees,
+      setupFees,
+      perStore,
+      feeBreakdown,
+      giftCard,
+      smsEnabled,
+      smsMessages,
+      smsCountry,
+      whatsappEnabled,
+      whatsappCountry,
+      whatsappMarketTicket,
+      whatsappUtility,
+      whatsappMarketing,
+      whatsappOtp,
+      independentServer,
+      premiumSLA,
+      premiumSupport,
+      cms,
+      appType,
+      dataIngestion,
+      pushNotifications,
+      businessType,
+      selectedConnectionTierIndex,
+    });
 
-    // Generate PDF as base64 for webhook
-    const pdfBase64 = generatePDFAsBase64();
+    const pdfBase64 = generatePDFAsBase64(
+      {
+        plan,
+        stores,
+        transactions,
+        marketing,
+        monthlyFees,
+        setupFees,
+        feeBreakdown,
+        giftCard,
+        smsEnabled,
+        smsMessages,
+        smsCountry,
+        whatsappEnabled,
+        whatsappCountry,
+        whatsappMarketTicket,
+        whatsappUtility,
+        whatsappMarketing,
+        whatsappOtp,
+        independentServer,
+        premiumSLA,
+        premiumSupport,
+        cms,
+        appType,
+        dataIngestion,
+        pushNotifications,
+        firstName,
+        lastName,
+        selectedConnectionTierIndex,
+        whatsappRates,
+      },
+      jsPdfLoaded
+    );
 
-    // Prepare data to send
     const formData = {
       firstName,
       lastName,
@@ -1971,8 +492,8 @@ export default function SpoonityCalculator() {
       role,
       country: country === "Other" ? otherCountry : country,
       businessType,
-      quoteDetails, // Single parameter containing all quote information
-      pdfBase64, // PDF data as base64 string
+      quoteDetails,
+      pdfBase64,
       calculatorData: {
         plan,
         planName: planDetails[plan].name,
@@ -2004,147 +525,47 @@ export default function SpoonityCalculator() {
 
     try {
       const webhookUrl = "https://hooks.zapier.com/hooks/catch/57845/20qrdnf/";
-
-      console.log("Submitting data to Zapier webhook...");
       addLog("Sending data to webhook", formData);
 
-      // Store submission state in localStorage
       localStorage.setItem("spoonity_submission_pending", "true");
       localStorage.setItem(
         "spoonity_submission_data",
-        JSON.stringify({
-          firstName,
-          lastName,
-          email,
-        })
+        JSON.stringify({ firstName, lastName, email })
       );
 
-      // Use fetch API with proper CORS settings
-      const response = await fetch(webhookUrl, {
+      await fetch(webhookUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json",
         },
-        mode: "no-cors", // This allows the request to succeed even with CORS restrictions
+        mode: "no-cors",
         body: JSON.stringify({ data: formData }),
       });
 
-      console.log(
-        "Webhook Response Status:",
-        response.status,
-        response.statusText
-      );
-      addLog("Webhook Response Status", {
-        status: response.status,
-        statusText: response.statusText,
-      });
-
-      // Since we're using no-cors, we won't be able to read the response body
-      // but we can consider it successful if we get here
       addLog("Webhook submission completed successfully");
       setSubmitSuccess(true);
       setIsSubmitting(false);
-
-      // Scroll to top when transitioning to thank you screen
-      window.scrollTo({
-        top: 0,
-        behavior: "smooth",
-      });
+      window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (error: unknown) {
-      console.error("Error in submission process:", error);
       addLog("Error in submission process", {
         error: error instanceof Error ? error.message : String(error),
       });
-
-      // Automatically proceed to success screen for demo purposes
       setSubmitSuccess(true);
       setIsSubmitting(false);
-
-      // Scroll to top when transitioning to thank you screen
-      window.scrollTo({
-        top: 0,
-        behavior: "smooth",
-      });
+      window.scrollTo({ top: 0, behavior: "smooth" });
     }
   };
 
-  // Calculate fees whenever inputs change
-  React.useEffect(() => {
-    const fees = calculateFees();
-    setFeeBreakdown(fees);
-  }, [
-    plan,
-    stores,
-    transactions,
-    marketing,
-    giftCard,
-    pushNotifications,
-    smsMessages,
-    smsCountry,
-    independentServer,
-    premiumSupport,
-    premiumSLA,
-    cms,
-    appType,
-    dataIngestion,
-    businessType,
-    // Add WhatsApp message counts and country to dependencies
-    whatsappEnabled,
-    whatsappCountry,
-    whatsappMarketTicket,
-    whatsappUtility,
-    whatsappMarketing,
-    whatsappOtp,
-    // Discounts (recalc only when applied or being cleared)
-    discountUnlocked,
-    discountsApplied,
-    appliedSubtotalDiscount,
-    appliedItemDiscounts,
-    // Connection fee tier selection
-    selectedConnectionTierIndex,
-  ]);
-
-  // Calculate default SMS message count when stores or transactions change
-  React.useEffect(() => {
-    // Calculate default SMS count as 10% of total transactions
-    const defaultSmsCount = Math.round(stores * transactions * 0.1);
-    if (smsEnabled) {
-      setSmsMessages(defaultSmsCount.toString());
-    }
-  }, [stores, transactions, smsEnabled]);
-
-  // Calculate default WhatsApp message counts when stores or transactions change
-  React.useEffect(() => {
-    if (whatsappEnabled) {
-      const defaultCount = Math.round(stores * transactions * 0.1);
-      setWhatsappMarketTicket(defaultCount);
-      setWhatsappUtility(defaultCount);
-      setWhatsappOtp(defaultCount);
-      setWhatsappMarketing(10000);
-    }
-  }, [stores, transactions, whatsappEnabled]);
-
-  // Ensure independent server for >50 stores
-  React.useEffect(() => {
-    if (stores > 50) {
-      setIndependentServer(true);
-    }
-  }, [stores]);
-
   // Calculate the fees
   function calculateFees() {
-    // Base license fee
     let monthly = planDetails[plan].base;
-
-    // Connection fees (simplified tiered calculation)
     let connectionFees = calculateConnectionFees(
       stores,
       selectedConnectionTierIndex
     );
     monthly += connectionFees;
 
-    // Transaction fees (25% of total)
     let transactionVolume = 0.25 * (stores * transactions);
     let transactionFees = 0;
     if (transactionVolume > 50000) {
@@ -2156,25 +577,21 @@ export default function SpoonityCalculator() {
     }
     monthly += transactionFees;
 
-    // Marketing emails (for Marketing and Intelligence plans)
     let marketingFees = 0;
     if (plan !== "loyalty") {
-      // Use tiered breakdown - only get the selected tier's cost
       const breakdown = getMarketingEmailBreakdown(marketing);
       const selectedTier = breakdown.find((tier) => tier.isSelected);
       marketingFees = selectedTier ? selectedTier.total : 0;
       monthly += marketingFees;
 
-      // Push notifications
       if (pushNotifications) {
         monthly += marketing * 0.0045;
       }
     }
 
-    // Add-ons
     let giftCardFees = 0;
     if (giftCard) {
-      giftCardFees = 500 + stores * 30; // $500 base + $30/store
+      giftCardFees = 500 + stores * 30;
       monthly += giftCardFees;
     }
 
@@ -2184,31 +601,22 @@ export default function SpoonityCalculator() {
       monthly += smsFees;
     }
 
-    // WhatsApp fees
     let whatsappBaseFee = 0;
     let whatsappPerStoreFee = 0;
     let whatsappMessageFees = 0;
     let whatsappTotalFee = 0;
 
     if (whatsappEnabled) {
-      // Base platform fee
       whatsappBaseFee = 630;
-
-      // Per-store fee based on tiers
       whatsappPerStoreFee = calculateWhatsappStoreFeeTiers(stores);
-
-      // Message fees based on country and message types
       const countryRates = whatsappRates[whatsappCountry];
-      const marketTicketFee = whatsappMarketTicket * countryRates.marketTicket;
-      const utilityFee = whatsappUtility * countryRates.utility;
-      const marketingFee = whatsappMarketing * countryRates.marketing;
-      const otpFee = whatsappOtp * countryRates.otp;
-
       whatsappMessageFees =
-        marketTicketFee + utilityFee + marketingFee + otpFee;
+        whatsappMarketTicket * countryRates.marketTicket +
+        whatsappUtility * countryRates.utility +
+        whatsappMarketing * countryRates.marketing +
+        whatsappOtp * countryRates.otp;
       whatsappTotalFee =
         whatsappBaseFee + whatsappPerStoreFee + whatsappMessageFees;
-
       monthly += whatsappTotalFee;
     }
 
@@ -2230,12 +638,10 @@ export default function SpoonityCalculator() {
       monthly += cmsFees;
     }
 
-    // App monthly fees
     let appFees = 0;
     if (appType === "premium") {
       appFees = 1080;
       monthly += appFees;
-      // Automatically enable CMS for Premium app
       if (!cms) {
         setCms(true);
         cmsFees = 530;
@@ -2246,7 +652,6 @@ export default function SpoonityCalculator() {
       monthly += appFees;
     }
 
-    // Apply item-level discounts if unlocked
     let totalItemDiscounts = 0;
     const getItemDiscount = (key: string, amount: number) => {
       if (!discountUnlocked) return 0;
@@ -2257,7 +662,6 @@ export default function SpoonityCalculator() {
       return Math.min(d.value, amount);
     };
 
-    // compute discounts on current components
     const dBase = getItemDiscount("baseLicense", planDetails[plan].base);
     const dConn = getItemDiscount("connection", connectionFees);
     const dTxn = getItemDiscount("transaction", transactionFees);
@@ -2286,12 +690,11 @@ export default function SpoonityCalculator() {
       monthly = Math.max(0, monthly - totalItemDiscounts);
     }
 
-    // Premium support is calculated after all other monthly fees
-    let totalBeforeSupport = monthly;
+    let currentTotalBeforeSupport = monthly;
     let supportFees = 0;
     let supportDiscountApplied = 0;
     if (premiumSupport) {
-      supportFees = 2000 + totalBeforeSupport * 0.1;
+      supportFees = 2000 + currentTotalBeforeSupport * 0.1;
       if (discountUnlocked) {
         const supportDiscount = getItemDiscount("support", supportFees);
         supportDiscountApplied = supportDiscount;
@@ -2301,10 +704,8 @@ export default function SpoonityCalculator() {
       monthly += supportFees;
     }
 
-    // Subtotal before subtotal-discount
     const monthlySubtotal = monthly;
 
-    // Apply subtotal discount if unlocked
     let subtotalDiscountAmount = 0;
     if (discountUnlocked) {
       const sd = discountsApplied ? appliedSubtotalDiscount : subtotalDiscount;
@@ -2316,11 +717,9 @@ export default function SpoonityCalculator() {
       monthly = Math.max(0, monthly - subtotalDiscountAmount);
     }
 
-    // Setup fees
-    let onboardingFee = totalBeforeSupport * 0.33 * 3; // Onboarding fee
+    let onboardingFee = currentTotalBeforeSupport * 0.33 * 3;
     let setup = onboardingFee;
 
-    // App setup fees
     let appSetupFee = 0;
     if (appType === "premium") {
       appSetupFee = 15000;
@@ -2333,32 +732,22 @@ export default function SpoonityCalculator() {
       setup += appSetupFee;
     }
 
-    // Data ingestion
     let dataIngestionFee = 0;
     if (dataIngestion) {
-      dataIngestionFee = totalBeforeSupport * 0.2;
+      dataIngestionFee = currentTotalBeforeSupport * 0.2;
       setup += dataIngestionFee;
     }
 
-    // Franchise/Corporate split (if applicable)
     const corporateFees =
-      businessType === "franchise"
-        ? monthly - connectionFees // Corporate pays all fees except connection fees
-        : monthly; // Corporate pays all fees
-
-    const franchiseeFees =
-      businessType === "franchise"
-        ? connectionFees // Franchisees only pay connection fees
-        : 0; // No franchise fees if corporately owned
-
+      businessType === "franchise" ? monthly - connectionFees : monthly;
+    const franchiseeFees = businessType === "franchise" ? connectionFees : 0;
     const franchiseePerStore =
       businessType === "franchise" && stores > 0 ? connectionFees / stores : 0;
 
-    // Set calculated values
     setMonthlyFees(monthly);
     setSetupFees(setup);
     setPerStore(stores > 0 ? monthly / stores : 0);
-    setTotalBeforeSupport(totalBeforeSupport);
+    setTotalBeforeSupport(currentTotalBeforeSupport);
 
     return {
       total: monthly,
@@ -2409,6 +798,65 @@ export default function SpoonityCalculator() {
     };
   }
 
+  // Calculate fees whenever inputs change
+  React.useEffect(() => {
+    const fees = calculateFees();
+    setFeeBreakdown(fees);
+  }, [
+    plan,
+    stores,
+    transactions,
+    marketing,
+    giftCard,
+    pushNotifications,
+    smsMessages,
+    smsCountry,
+    independentServer,
+    premiumSupport,
+    premiumSLA,
+    cms,
+    appType,
+    dataIngestion,
+    businessType,
+    whatsappEnabled,
+    whatsappCountry,
+    whatsappMarketTicket,
+    whatsappUtility,
+    whatsappMarketing,
+    whatsappOtp,
+    discountUnlocked,
+    discountsApplied,
+    appliedSubtotalDiscount,
+    appliedItemDiscounts,
+    selectedConnectionTierIndex,
+  ]);
+
+  // Calculate default SMS message count
+  React.useEffect(() => {
+    const defaultSmsCount = Math.round(stores * transactions * 0.1);
+    if (smsEnabled) {
+      setSmsMessages(defaultSmsCount.toString());
+    }
+  }, [stores, transactions, smsEnabled]);
+
+  // Calculate default WhatsApp message counts
+  React.useEffect(() => {
+    if (whatsappEnabled) {
+      const defaultCount = Math.round(stores * transactions * 0.1);
+      setWhatsappMarketTicket(defaultCount);
+      setWhatsappUtility(defaultCount);
+      setWhatsappOtp(defaultCount);
+      setWhatsappMarketing(10000);
+    }
+  }, [stores, transactions, whatsappEnabled]);
+
+  // Ensure independent server for >50 stores
+  React.useEffect(() => {
+    if (stores > 50) {
+      setIndependentServer(true);
+    }
+  }, [stores]);
+
   // Update phone number when country changes
   React.useEffect(() => {
     if (country !== "Other") {
@@ -2416,158 +864,87 @@ export default function SpoonityCalculator() {
       if (!phone.startsWith(dialCode)) {
         setPhone(dialCode);
       }
-      // Disable WhatsApp if country is not supported
       if (!whatsappAvailableCountries.includes(country)) {
         setWhatsappEnabled(false);
       }
     } else {
-      // If switching to "Other", remove any existing country code and keep only the + sign
       if (phone.startsWith("+")) {
         setPhone("+");
       } else if (!phone.startsWith("+")) {
         setPhone("+");
       }
-      // Disable WhatsApp for "Other" countries
       setWhatsappEnabled(false);
     }
   }, [country]);
 
-  // Add scroll function
-  const scrollToTop = () => {
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth",
-    });
-  };
-
-  // Update tab switching logic
+  // Tab change handler
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
-    // Use setTimeout to ensure the new content is rendered before scrolling
     setTimeout(() => {
-      window.scrollTo({
-        top: 0,
-        behavior: "smooth",
-      });
+      window.scrollTo({ top: 0, behavior: "smooth" });
     }, 100);
   };
 
-  // Function to reset all states to default values
-  const resetAllStates = () => {
-    // Clear all localStorage items
-    localStorage.clear(); // This will remove all items from localStorage
-
-    // Reset all state variables
-    setFirstName("");
-    setLastName("");
-    setEmail("");
-    setPhone("");
-    setCompany("");
-    setRole("");
-    setCountry("USA");
-    setOtherCountry("");
-    setBusinessType("corporate");
-    setToken("");
-    setTokenError("");
-    setPlan("loyalty");
-    setStores(10);
-    setTransactions(1000);
-    setMarketing(10000);
-    setGiftCard(false);
-    setPushNotifications(false);
-    setSmsEnabled(true);
-    setSmsMessages("");
-    setSmsCountry("USA");
-    setIndependentServer(false);
-    setPremiumSupport(false);
-    setPremiumSLA(false);
-    setCms(false);
-    setAppType("none");
-    setDataIngestion(false);
-    setWhatsappEnabled(false);
-    setWhatsappCountry("Mexico");
-    setWhatsappMarketTicket(0);
-    setWhatsappUtility(0);
-    setWhatsappMarketing(0);
-    setWhatsappOtp(0);
-    setDiscountPassword("");
-    setDiscountUnlocked(false);
-    setShowDiscountInput(false);
-    setSubtotalDiscount({ type: "percentage", value: 0 });
-    setDiscountReason("");
-    setItemDiscounts({});
-    setShowItemDiscounts(false);
-    setMonthlyFees(0);
-    setSetupFees(0);
-    setPerStore(0);
-    setActiveTab("inputs");
-    setTotalBeforeSupport(0);
-    setFeeBreakdown({
-      total: 0,
-      subtotal: 0,
-      connection: 0,
-      baseLicense: 0,
-      transaction: 0,
-      marketing: 0,
-      giftCard: 0,
-      sms: 0,
-      whatsapp: {
-        base: 0,
-        perStore: 0,
-        messages: 0,
-        total: 0,
-      },
-      server: 0,
-      sla: 0,
-      cms: 0,
-      app: 0,
-      support: 0,
-      discount: 0,
-      itemDiscounts: 0,
-      subtotalDiscountAmount: 0,
-      net: {
-        baseLicense: 0,
-        connection: 0,
-        transaction: 0,
-        marketing: 0,
-        giftCard: 0,
-        sms: 0,
-        whatsapp: 0,
-        server: 0,
-        sla: 0,
-        cms: 0,
-        app: 0,
-        support: 0,
-      },
-      corporate: 0,
-      franchisee: 0,
-      franchiseePerStore: 0,
-      setup: {
-        total: 0,
-        onboarding: 0,
-        appSetup: 0,
-        dataIngestion: 0,
-      },
-    });
-    setIsLoggedIn(false);
-    setSubmitSuccess(false);
-    setIsSubmitting(false);
-    setSubmitError("");
-    setWebhookLogs([]);
-    setShowLogs(false);
-  };
-
-  // Add a dedicated sign out function
+  // Sign out handler
   const handleSignOut = () => {
     resetAllStates();
-    // Scroll to top after signing out
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth",
-    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // Render email form if not logged in
+  // PDF generation handler
+  const handleGeneratePDF = () => {
+    if (!jsPdfLoaded) {
+      alert("PDF generation is loading. Please try again in a moment.");
+      return;
+    }
+
+    setIsPdfGenerating(true);
+
+    setTimeout(() => {
+      try {
+        generatePDF(
+          {
+            plan,
+            stores,
+            transactions,
+            marketing,
+            monthlyFees,
+            setupFees,
+            feeBreakdown,
+            giftCard,
+            smsEnabled,
+            smsMessages,
+            smsCountry,
+            whatsappEnabled,
+            whatsappCountry,
+            whatsappMarketTicket,
+            whatsappUtility,
+            whatsappMarketing,
+            whatsappOtp,
+            independentServer,
+            premiumSLA,
+            premiumSupport,
+            cms,
+            appType,
+            dataIngestion,
+            pushNotifications,
+            firstName,
+            lastName,
+            selectedConnectionTierIndex,
+            whatsappRates,
+          },
+          jsPdfLoaded
+        );
+      } catch (error) {
+        console.error("Error in PDF generation:", error);
+        alert("There was an error generating your PDF. Please try again.");
+      } finally {
+        setIsPdfGenerating(false);
+      }
+    }, 100);
+  };
+
+  // Render login form if not logged in
   if (!isLoggedIn) {
     return (
       <LoginForm
@@ -2602,692 +979,60 @@ export default function SpoonityCalculator() {
   return (
     <div className="w-full max-w-4xl mx-auto p-4">
       {submitSuccess ? (
-        <div className="max-w-4xl mx-auto p-4">
-          <div className="rounded-lg overflow-hidden shadow-md">
-            <div className="bg-gradient-to-r from-[#640C6F] to-[#640C6F] p-6 text-white text-center">
-              <div className="flex justify-center mb-4">
-                <img
-                  src="/logo.png"
-                  alt="Spoonity Logo"
-                  className="h-16 w-48 object-contain"
-                />
-              </div>
-              <h2 className="text-2xl font-bold mb-2">Thank You!</h2>
-              <p className="text-lg mb-1">
-                Your pricing information has been submitted successfully.
-              </p>
-              <p className="text-green-100">
-                A Spoonity representative will be in touch with you shortly.
-              </p>
-            </div>
-
-            <div className="bg-white p-6">
-              <div className="bg-gray-50 rounded-lg p-5 mb-6 border border-gray-200">
-                <h3 className="font-medium text-gray-900 mb-3">
-                  Your Pricing Summary
-                </h3>
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div className="space-y-2 text-gray-500">
-                      <p>Base License Fee</p>
-                      <p>Connection Fees ({stores} stores)</p>
-                      <p>Transaction Processing</p>
-                      {plan !== "loyalty" && <p>Marketing Emails</p>}
-                      {plan !== "loyalty" && pushNotifications && (
-                        <p>Push Notifications</p>
-                      )}
-                    </div>
-                    <div className="space-y-2 text-right font-medium">
-                      <p>{formatCurrency(planDetails[plan].base)}</p>
-                      <p>{formatCurrency(feeBreakdown.connection)}</p>
-                      <p>{formatCurrency(feeBreakdown.transaction)}</p>
-                      {plan !== "loyalty" && (
-                        <p>
-                          {(() => {
-                            const selectedTier = getMarketingEmailBreakdown(
-                              marketing
-                            ).find((t) => t.isSelected);
-                            const display = selectedTier
-                              ? selectedTier.tierName !== "Tier 1"
-                                ? selectedTier.total - 500
-                                : selectedTier.total
-                              : feeBreakdown.marketing;
-                            return formatCurrency(display);
-                          })()}
-                        </p>
-                      )}
-                      {plan !== "loyalty" && pushNotifications && (
-                        <p>{formatCurrency(marketing * 0.0045)}</p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Connection Fee Tier Breakdown */}
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <h4 className="font-medium mb-2 text-sm">
-                      Connection Fee Breakdown
-                    </h4>
-                    <div className="space-y-1 text-xs">
-                      {getConnectionFeeBreakdown(
-                        stores,
-                        selectedConnectionTierIndex
-                      ).map((tier: any, index) => (
-                        <div
-                          key={index}
-                          className={`flex justify-between p-2 rounded ${
-                            tier.isSelected
-                              ? "bg-purple-100 border border-purple-300"
-                              : "bg-gray-50"
-                          }`}
-                        >
-                          <div className="flex flex-col">
-                            <span
-                              className={`text-sm font-medium ${
-                                tier.isSelected
-                                  ? "text-purple-800"
-                                  : "text-gray-600"
-                              }`}
-                            >
-                              {tier.tierName}: {tier.range}
-                            </span>
-                            <span className="text-xs text-gray-500">
-                              {tier.isSelected
-                                ? `${tier.count.toLocaleString()} stores (your volume)`
-                                : `Up to ${tier.count.toLocaleString()} stores`}
-                            </span>
-                          </div>
-                          <div className="text-right">
-                            <span
-                              className={`font-medium ${
-                                tier.isSelected
-                                  ? "text-purple-800"
-                                  : "text-gray-600"
-                              }`}
-                            >
-                              ${tier.price.toFixed(2)}/store
-                            </span>
-                            {tier.isSelected && (
-                              <div className="text-xs text-purple-600">
-                                Selected
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Transaction Processing Tier Breakdown */}
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <h4 className="font-medium mb-2 text-sm">
-                      Transaction Processing Breakdown
-                    </h4>
-                    <div className="space-y-1 text-xs">
-                      <div className="flex justify-between mb-1">
-                        <span className="text-gray-600">
-                          Total Volume:{" "}
-                          {Math.round(
-                            0.25 * (stores * transactions)
-                          ).toLocaleString()}{" "}
-                          transactions
-                        </span>
-                      </div>
-                      {getTransactionFeeBreakdown(
-                        0.25 * (stores * transactions)
-                      ).map((tier, index) => (
-                        <div key={index} className="flex justify-between">
-                          <span className="text-gray-600">
-                            {tier.volume.toLocaleString()} transactions ($
-                            {tier.rate.toFixed(1)}/transaction):
-                          </span>
-                          <span className="font-medium">
-                            {formatCurrency(tier.total)}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Marketing Email Tier Breakdown */}
-                  {plan !== "loyalty" && (
-                    <div className="bg-gray-50 rounded-lg p-4">
-                      <h4 className="font-medium mb-2 text-sm">
-                        Marketing Email Breakdown
-                      </h4>
-                      <div className="space-y-1 text-xs">
-                        <div className="flex justify-between mb-1">
-                          <span className="text-gray-600">
-                            Total Emails: {marketing.toLocaleString()}
-                          </span>
-                        </div>
-                        {getMarketingEmailBreakdown(marketing).map(
-                          (tier, index) => (
-                            <div
-                              key={index}
-                              className={`flex justify-between p-2 rounded ${
-                                tier.isSelected
-                                  ? "bg-purple-100 border border-purple-300"
-                                  : "bg-gray-50"
-                              }`}
-                            >
-                              <div className="flex flex-col">
-                                <span
-                                  className={`text-sm font-medium ${
-                                    tier.isSelected
-                                      ? "text-purple-800"
-                                      : "text-gray-600"
-                                  }`}
-                                >
-                                  {tier.tierName}: {tier.range}
-                                </span>
-                                <span className="text-xs text-gray-500">
-                                  {tier.isSelected
-                                    ? `${tier.count.toLocaleString()} emails (your volume)`
-                                    : `Up to ${tier.count.toLocaleString()} emails`}
-                                </span>
-                              </div>
-                              <div className="text-right">
-                                <span
-                                  className={`font-medium ${
-                                    tier.isSelected
-                                      ? "text-purple-800"
-                                      : "text-gray-600"
-                                  }`}
-                                >
-                                  {formatCurrency(tier.total)}
-                                </span>
-                                <div className="text-xs text-gray-500">
-                                  ($500 base fee included)
-                                </div>
-                                {tier.isSelected && (
-                                  <div className="text-xs text-purple-600">
-                                    Selected
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          )
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Add-ons Section */}
-                  {(giftCard ||
-                    smsEnabled ||
-                    whatsappEnabled ||
-                    independentServer ||
-                    premiumSLA ||
-                    premiumSupport ||
-                    cms ||
-                    appType !== "none" ||
-                    dataIngestion) && (
-                    <div className="border-t pt-4 mt-4">
-                      <h4 className="font-medium mb-3">Add-on Services:</h4>
-                      <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div className="space-y-2 text-gray-500">
-                          {giftCard && (
-                            <>
-                              <p>Gift Card Base Fee</p>
-                              <p>
-                                Gift Card Per-Store Fee ({stores} stores @
-                                $30/store)
-                              </p>
-                            </>
-                          )}
-                          {smsEnabled &&
-                            smsMessages &&
-                            parseInt(smsMessages) > 0 && (
-                              <p>SMS Messages ({smsMessages})</p>
-                            )}
-                          {whatsappEnabled && (
-                            <>
-                              <p>WhatsApp Base Platform Fee</p>
-                              <p>WhatsApp Per-Store Fee ({stores} stores)</p>
-                              <p className="pl-4">
-                                • Digital Receipts (
-                                {whatsappMarketTicket.toLocaleString()}{" "}
-                                messages)
-                              </p>
-                              <p className="pl-4">
-                                • Utility Messages (
-                                {whatsappUtility.toLocaleString()} messages)
-                              </p>
-                              <p className="pl-4">
-                                • Marketing Messages (
-                                {whatsappMarketing.toLocaleString()} messages)
-                              </p>
-                              <p className="pl-4">
-                                • OTP Messages ({whatsappOtp.toLocaleString()}{" "}
-                                messages)
-                              </p>
-                            </>
-                          )}
-                          {independentServer && <p>Independent Server</p>}
-                          {premiumSLA && <p>Premium SLA</p>}
-                          {cms && <p>Content Management System</p>}
-                          {appType === "premium" && (
-                            <p>Premium App Subscription</p>
-                          )}
-                          {appType === "standard" && (
-                            <p>Standard App Subscription</p>
-                          )}
-                          {appType === "pwa" && <p>PWA Subscription</p>}
-                          {premiumSupport && <p>Premium Support</p>}
-                          {dataIngestion && <p>Data Ingestion</p>}
-                        </div>
-                        <div className="space-y-2 text-right font-medium">
-                          {giftCard && (
-                            <>
-                              <p>{formatCurrency(500)}</p>
-                              <p>{formatCurrency(stores * 30)}</p>
-                            </>
-                          )}
-                          {smsMessages && parseInt(smsMessages) > 0 && (
-                            <p>{formatCurrency(feeBreakdown.sms)}</p>
-                          )}
-                          {whatsappEnabled && (
-                            <>
-                              <p>{formatCurrency(630)}</p>
-                              <p>
-                                {formatCurrency(feeBreakdown.whatsapp.perStore)}
-                              </p>
-                              <p className="pr-4">
-                                {formatCurrency(
-                                  whatsappMarketTicket *
-                                    whatsappRates[whatsappCountry].marketTicket
-                                )}
-                              </p>
-                              <p className="pr-4">
-                                {formatCurrency(
-                                  whatsappUtility *
-                                    whatsappRates[whatsappCountry].utility
-                                )}
-                              </p>
-                              <p className="pr-4">
-                                {formatCurrency(
-                                  whatsappMarketing *
-                                    whatsappRates[whatsappCountry].marketing
-                                )}
-                              </p>
-                              <p className="pr-4">
-                                {formatCurrency(
-                                  whatsappOtp *
-                                    whatsappRates[whatsappCountry].otp
-                                )}
-                              </p>
-                            </>
-                          )}
-                          {independentServer && (
-                            <p>{formatCurrency(feeBreakdown.server)}</p>
-                          )}
-                          {premiumSLA && (
-                            <p>{formatCurrency(feeBreakdown.sla)}</p>
-                          )}
-                          {cms && <p>{formatCurrency(feeBreakdown.cms)}</p>}
-                          {appType === "premium" && (
-                            <p>{formatCurrency(feeBreakdown.app)}</p>
-                          )}
-                          {appType === "standard" && (
-                            <p>{formatCurrency(feeBreakdown.app)}</p>
-                          )}
-                          {appType === "pwa" && (
-                            <p>{formatCurrency(feeBreakdown.app)}</p>
-                          )}
-                          {premiumSupport && (
-                            <p>{formatCurrency(feeBreakdown.support)}</p>
-                          )}
-                          {dataIngestion && (
-                            <p>
-                              {formatCurrency(
-                                (monthlyFees -
-                                  (premiumSupport
-                                    ? 2000 + monthlyFees * 0.1
-                                    : 0)) *
-                                  0.2
-                              )}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* {whatsappEnabled && (
-                            <div className="mt-3 text-xs bg-gray-50 p-3 rounded-md">
-                              <div className="font-medium mb-1">WhatsApp Message Breakdown:</div>
-                              <div className="grid grid-cols-2 gap-1">
-                                <span className="pl-2">• Digital Receipts ({whatsappMarketTicket.toLocaleString()} × ${whatsappRates[whatsappCountry].marketTicket.toFixed(4)}):</span>
-                                <span className="text-right">{formatCurrency(whatsappMarketTicket * whatsappRates[whatsappCountry].marketTicket)}</span>
-                                
-                                <span className="pl-2">• Utility Messages ({whatsappUtility.toLocaleString()} × ${whatsappRates[whatsappCountry].utility.toFixed(2)}):</span>
-                                <span className="text-right">{formatCurrency(whatsappUtility * whatsappRates[whatsappCountry].utility)}</span>
-                                
-                                <span className="pl-2">• Marketing Messages ({whatsappMarketing.toLocaleString()} × ${whatsappRates[whatsappCountry].marketing.toFixed(2)}):</span>
-                                <span className="text-right">{formatCurrency(whatsappMarketing * whatsappRates[whatsappCountry].marketing)}</span>
-                                
-                                <span className="pl-2">• OTP Messages ({whatsappOtp.toLocaleString()} × ${whatsappRates[whatsappCountry].otp.toFixed(2)}):</span>
-                                <span className="text-right">{formatCurrency(whatsappOtp * whatsappRates[whatsappCountry].otp)}</span>
-                                
-                                <span className="font-medium pt-1 border-t mt-1">Total Message Fees:</span>
-                                <span className="text-right font-medium pt-1 border-t mt-1">{formatCurrency(feeBreakdown.whatsapp.messages)}</span>
-                              </div>
-                            </div>
-                          )} */}
-                    </div>
-                  )}
-
-                  {/* Setup Fee Breakdown */}
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <h4 className="font-medium mb-2 text-sm">
-                      Setup Fee Breakdown
-                    </h4>
-                    <div className="space-y-1 text-xs">
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">
-                          Onboarding (3 months of monthly fees):
-                        </span>
-                        <span className="font-medium">
-                          {formatCurrency(feeBreakdown.setup.onboarding)}
-                        </span>
-                      </div>
-                      {appType === "premium" && (
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">
-                            Premium App Setup:
-                          </span>
-                          <span className="font-medium">
-                            {formatCurrency(15000)}
-                          </span>
-                          {discountUnlocked && (
-                            <div className="flex gap-2 pt-2">
-                              <button
-                                type="button"
-                                className={`px-3 py-2 rounded-md text-sm font-medium text-white ${"bg-blue-600 hover:bg-blue-700"}`}
-                                // disabled={discountsApplied}
-                                onClick={() => {
-                                  setAppliedItemDiscounts(itemDiscounts);
-                                  setAppliedSubtotalDiscount(subtotalDiscount);
-                                  setAppliedDiscountReason(discountReason);
-                                  setDiscountsApplied(true);
-                                }}
-                              >
-                                Apply Discounts
-                              </button>
-                              <button
-                                type="button"
-                                className={`px-3 py-2 rounded-md text-sm font-medium ${
-                                  discountsApplied
-                                    ? "bg-red-600 text-white hover:bg-red-700"
-                                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                                }`}
-                                onClick={() => {
-                                  setItemDiscounts({});
-                                  setSubtotalDiscount({
-                                    type: "fixed",
-                                    value: 0,
-                                  });
-                                  setDiscountReason("");
-                                  setAppliedItemDiscounts({});
-                                  setAppliedSubtotalDiscount({
-                                    type: "fixed",
-                                    value: 0,
-                                  });
-                                  setAppliedDiscountReason("");
-                                  setDiscountsApplied(false);
-                                }}
-                              >
-                                Clear Discounts
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                      {appType === "standard" && (
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">
-                            Standard App Setup:
-                          </span>
-                          <span className="font-medium">
-                            {formatCurrency(5000)}
-                          </span>
-                        </div>
-                      )}
-                      {appType === "pwa" && (
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">PWA Setup:</span>
-                          <span className="font-medium">
-                            {formatCurrency(1000)}
-                          </span>
-                        </div>
-                      )}
-                      {dataIngestion && (
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">
-                            Data Ingestion Setup:
-                          </span>
-                          <span className="font-medium">
-                            {formatCurrency(feeBreakdown.setup.dataIngestion)}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="border-t pt-2 mt-2 flex justify-between text-sm">
-                    <span className="text-gray-600">
-                      Subtotal (before discounts):
-                    </span>
-                    <span className="font-medium">
-                      {formatCurrency(
-                        (monthlyFees || 0) + (feeBreakdown.discount || 0)
-                      )}
-                    </span>
-                  </div>
-                  {(feeBreakdown.discount || 0) > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Discounts Applied:</span>
-                      <span className="font-medium text-green-700">
-                        - {formatCurrency(feeBreakdown.discount)}
-                      </span>
-                    </div>
-                  )}
-                  <div className="border-t pt-2 mt-2 flex justify-between font-medium">
-                    <span>Monthly Recurring Fees:</span>
-                    <span className="spoonity-primary-text">
-                      {formatCurrency(monthlyFees)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Setup Fees:</span>
-                    <span className="font-medium">
-                      {formatCurrency(setupFees)}
-                    </span>
-                  </div>
-                  <div className="border-t pt-2 mt-2 flex justify-between font-medium">
-                    <span>First Year Total:</span>
-                    <span className="spoonity-primary-text">
-                      {formatCurrency(monthlyFees * 12 + setupFees)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="text-center">
-                <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  <button
-                    onClick={() => generatePDFWithLoading()}
-                    disabled={!jsPdfLoaded || isPdfGenerating}
-                    className={`spoonity-cta text-white px-4 py-2.5 rounded-md font-medium transition-colors duration-200 flex items-center justify-center ${
-                      !jsPdfLoaded || isPdfGenerating
-                        ? "opacity-70 cursor-not-allowed"
-                        : ""
-                    }`}
-                  >
-                    {isPdfGenerating ? (
-                      <>
-                        <svg
-                          className="animate-spin -ml-1 mr-2 h-5 w-5 text-white"
-                          xmlns="http://www.w3.org/2000/svg"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                        >
-                          <circle
-                            className="opacity-25"
-                            cx="12"
-                            cy="12"
-                            r="10"
-                            stroke="currentColor"
-                            strokeWidth="4"
-                          ></circle>
-                          <path
-                            className="opacity-75"
-                            fill="currentColor"
-                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                          ></path>
-                        </svg>
-                        Generating PDF...
-                      </>
-                    ) : (
-                      <>
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          className="h-5 w-5 mr-2"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                          />
-                        </svg>
-                        {jsPdfLoaded
-                          ? "Download PDF Quote"
-                          : "Loading PDF Generator..."}
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              <div className="mt-8 text-center">
-                <button
-                  onClick={resetAllStates}
-                  className="text-gray-500 hover:spoonity-primary-text text-sm underline"
-                >
-                  Start Over
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <SuccessScreen
+          firstName={firstName}
+          lastName={lastName}
+          plan={plan}
+          stores={stores}
+          transactions={transactions}
+          marketing={marketing}
+          monthlyFees={monthlyFees}
+          setupFees={setupFees}
+          feeBreakdown={feeBreakdown}
+          giftCard={giftCard}
+          smsEnabled={smsEnabled}
+          smsMessages={smsMessages}
+          smsCountry={smsCountry}
+          whatsappEnabled={whatsappEnabled}
+          whatsappCountry={whatsappCountry}
+          whatsappMarketTicket={whatsappMarketTicket}
+          whatsappUtility={whatsappUtility}
+          whatsappMarketing={whatsappMarketing}
+          whatsappOtp={whatsappOtp}
+          independentServer={independentServer}
+          premiumSLA={premiumSLA}
+          premiumSupport={premiumSupport}
+          cms={cms}
+          appType={appType}
+          dataIngestion={dataIngestion}
+          pushNotifications={pushNotifications}
+          discountUnlocked={discountUnlocked}
+          discountsApplied={discountsApplied}
+          itemDiscounts={itemDiscounts}
+          subtotalDiscount={subtotalDiscount}
+          discountReason={discountReason}
+          setItemDiscounts={setItemDiscounts}
+          setSubtotalDiscount={setSubtotalDiscount}
+          setDiscountReason={setDiscountReason}
+          setAppliedItemDiscounts={setAppliedItemDiscounts}
+          setAppliedSubtotalDiscount={setAppliedSubtotalDiscount}
+          setAppliedDiscountReason={setAppliedDiscountReason}
+          setDiscountsApplied={setDiscountsApplied}
+          selectedConnectionTierIndex={selectedConnectionTierIndex}
+          jsPdfLoaded={jsPdfLoaded}
+          isPdfGenerating={isPdfGenerating}
+          onGeneratePDF={handleGeneratePDF}
+          onReset={resetAllStates}
+        />
       ) : (
         <div className="border rounded-lg shadow-sm overflow-hidden">
-          <div className="spoonity-primary p-6 text-white">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-bold mb-1">Spoonity</h1>
-                <p className="text-white opacity-90">Pricing Calculator</p>
-              </div>
-              <div className="text-sm text-right sm:block">
-                <div className="text-white opacity-90">Welcome,</div>
-                <div className="font-medium text-white">
-                  {firstName} {lastName} •{" "}
-                  <button
-                    onClick={handleSignOut}
-                    className="text-white opacity-90 hover:underline"
-                  >
-                    Sign Out
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
+          <CalculatorHeader
+            firstName={firstName}
+            lastName={lastName}
+            onSignOut={handleSignOut}
+          />
 
-          {/* Tabs */}
-          <div className="border-b">
-            <div className="flex">
-              <button
-                className={`px-4 py-3 tab-button ${
-                  activeTab === "inputs"
-                    ? "active spoonity-primary-text font-medium"
-                    : "text-gray-600 hover:spoonity-primary-text"
-                }`}
-                onClick={() => handleTabChange("inputs")}
-              >
-                <div className="flex items-center">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-5 w-5 mr-1.5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                    />
-                  </svg>
-                  Basic Info
-                </div>
-              </button>
-              <button
-                className={`px-4 py-3 tab-button ${
-                  activeTab === "addons"
-                    ? "active spoonity-primary-text font-medium"
-                    : "text-gray-600 hover:spoonity-primary-text"
-                }`}
-                onClick={() => handleTabChange("addons")}
-              >
-                <div className="flex items-center">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-5 w-5 mr-1.5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                    />
-                  </svg>
-                  Add-ons
-                </div>
-              </button>
-              <button
-                className={`px-4 py-3 tab-button ${
-                  activeTab === "summary"
-                    ? "active spoonity-primary-text font-medium"
-                    : "text-gray-600 hover:spoonity-primary-text"
-                }`}
-                onClick={() => handleTabChange("summary")}
-              >
-                <div className="flex items-center">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-5 w-5 mr-1.5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                    />
-                  </svg>
-                  Summary
-                </div>
-              </button>
-            </div>
-          </div>
+          <CalculatorTabs activeTab={activeTab} onTabChange={handleTabChange} />
 
           {/* Inputs Tab */}
           {activeTab === "inputs" && (
@@ -3403,60 +1148,13 @@ export default function SpoonityCalculator() {
             />
           )}
 
-          <div className="p-4 border-t bg-gray-50 flex justify-between items-center">
-            <div className="text-gray-500 text-sm sm:flex items-center hidden">
-              <button
-                onClick={() => handleTabChange("summary")}
-                className="spoonity-primary-text hover:underline font-medium flex items-center"
-              >
-                View Full Breakdown
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-4 w-4 ml-1"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 5l7 7-7 7"
-                  />
-                </svg>
-              </button>
-            </div>
-            <div className="flex items-baseline text-right ml-auto">
-              <div className="flex flex-col mr-6 sm:flex-row sm:items-baseline sm:space-x-2">
-                <span className="text-sm text-gray-500">Setup:</span>
-                <span className="font-medium text-sm">
-                  {formatCurrency(setupFees)}
-                </span>
-              </div>
-              <div className="flex flex-col">
-                <span className="text-sm text-gray-500">Monthly:</span>
-                {discountsApplied && (feeBreakdown.discount || 0) > 0 ? (
-                  <div className="flex items-baseline gap-2 sm:gap-3 justify-end">
-                    <span className="text-xs text-gray-600 whitespace-nowrap">
-                      Before:{" "}
-                      <span className="line-through text-gray-400">
-                        {formatCurrency(
-                          (monthlyFees || 0) + (feeBreakdown.discount || 0)
-                        )}
-                      </span>
-                    </span>
-                    <span className="text-base sm:text-xl font-bold spoonity-primary-text whitespace-nowrap">
-                      After: {formatCurrency(monthlyFees)}
-                    </span>
-                  </div>
-                ) : (
-                  <span className="text-xl font-bold spoonity-primary-text">
-                    {formatCurrency(monthlyFees)}
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
+          <CalculatorFooter
+            monthlyFees={monthlyFees}
+            setupFees={setupFees}
+            feeBreakdown={feeBreakdown}
+            discountsApplied={discountsApplied}
+            onViewBreakdown={() => handleTabChange("summary")}
+          />
         </div>
       )}
     </div>
