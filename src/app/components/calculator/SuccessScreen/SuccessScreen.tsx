@@ -6,7 +6,6 @@ import {
   getTransactionFeeBreakdown,
   getMarketingEmailBreakdown,
 } from "../utils";
-import { planDetails, whatsappRates } from "../data";
 
 export const SuccessScreen: React.FC<SuccessScreenProps> = ({
   plan,
@@ -48,6 +47,9 @@ export const SuccessScreen: React.FC<SuccessScreenProps> = ({
   jsPdfLoaded,
   isPdfGenerating,
   onGeneratePDF,
+  // Pricing configuration
+  planDetails,
+  whatsappRates,
   onReset,
 }) => {
   return (

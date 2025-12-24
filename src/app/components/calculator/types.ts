@@ -64,6 +64,41 @@ export interface FeeBreakdown {
   };
 }
 
+// Addon pricing configuration
+export interface AddonPricing {
+  giftCard: { baseFee: number; perStoreFee: number };
+  server: { baseFee: number; autoApplyAboveStores: number };
+  sla: { baseFee: number };
+  cms: { baseFee: number };
+  support: { baseFee: number; percentage: number };
+  dataIngestion: { percentage: number };
+  app: { premium: number; standard: number; pwa: number };
+}
+
+// Setup fees configuration
+export interface SetupFeesPricing {
+  onboarding: { months: number; rate: number };
+  app: { premium: number; standard: number; pwa: number };
+  dataIngestion: { percentage: number };
+}
+
+// Alias for SetupFeesPricing (for consistency with other naming)
+export type SetupFeesConfig = SetupFeesPricing;
+
+// WhatsApp store fee tier
+export interface WhatsappStoreFeeTier {
+  max: number;
+  base: number;
+  rate: number;
+  prevCount?: number;
+}
+
+// WhatsApp store fee configuration
+export interface WhatsappStoreFeeConfig {
+  baseFee: number;
+  tiers: WhatsappStoreFeeTier[];
+}
+
 export interface AddOnsTabProps {
   // SMS props
   smsEnabled: boolean;
@@ -114,4 +149,12 @@ export interface AddOnsTabProps {
   country: string;
   feeBreakdown: FeeBreakdown;
   handleTabChange: (tab: string) => void;
+
+  // Pricing configuration (dynamic from Firestore)
+  smsRates: Record<string, number>;
+  whatsappRates: WhatsAppRates;
+  whatsappAvailableCountries: string[];
+  whatsappStoreFeeConfig: WhatsappStoreFeeConfig;
+  addons: AddonPricing;
+  setupFees: SetupFeesPricing;
 }

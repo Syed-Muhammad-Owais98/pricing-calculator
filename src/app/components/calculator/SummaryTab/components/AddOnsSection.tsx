@@ -1,7 +1,6 @@
 import React from "react";
 import { AddOnsSectionProps } from "../types";
 import { formatCurrency } from "../../utils";
-import { whatsappRates } from "../../data";
 
 export const AddOnsSection: React.FC<AddOnsSectionProps> = ({
   giftCard,
@@ -22,6 +21,8 @@ export const AddOnsSection: React.FC<AddOnsSectionProps> = ({
   stores,
   monthlyFees,
   feeBreakdown,
+  whatsappRates,
+  addons,
 }) => {
   const hasAddOns =
     giftCard ||
@@ -44,7 +45,7 @@ export const AddOnsSection: React.FC<AddOnsSectionProps> = ({
           {giftCard && (
             <>
               <p>Gift Card Base Fee</p>
-              <p>Gift Card Per-Store Fee ({stores} stores @ $30/store)</p>
+              <p>Gift Card Per-Store Fee ({stores} stores @ {formatCurrency(addons.giftCard.perStoreFee)}/store)</p>
             </>
           )}
           {smsEnabled && smsMessages && parseInt(smsMessages) > 0 && (
@@ -82,8 +83,8 @@ export const AddOnsSection: React.FC<AddOnsSectionProps> = ({
         <div className="space-y-2 text-right font-medium">
           {giftCard && (
             <>
-              <p>{formatCurrency(500)}</p>
-              <p>{formatCurrency(stores * 30)}</p>
+              <p>{formatCurrency(addons.giftCard.baseFee)}</p>
+              <p>{formatCurrency(stores * addons.giftCard.perStoreFee)}</p>
             </>
           )}
           {smsMessages && parseInt(smsMessages) > 0 && (
@@ -91,7 +92,7 @@ export const AddOnsSection: React.FC<AddOnsSectionProps> = ({
           )}
           {whatsappEnabled && (
             <>
-              <p>{formatCurrency(630)}</p>
+              <p>{formatCurrency(feeBreakdown.whatsapp.base)}</p>
               <p>{formatCurrency(feeBreakdown.whatsapp.perStore)}</p>
               <p className="pr-4">
                 {formatCurrency(
@@ -123,8 +124,8 @@ export const AddOnsSection: React.FC<AddOnsSectionProps> = ({
           {dataIngestion && (
             <p>
               {formatCurrency(
-                (monthlyFees - (premiumSupport ? 2000 + monthlyFees * 0.1 : 0)) *
-                  0.2
+                (monthlyFees - (premiumSupport ? addons.support.baseFee + monthlyFees * addons.support.percentage : 0)) *
+                  addons.dataIngestion.percentage
               )}
             </p>
           )}

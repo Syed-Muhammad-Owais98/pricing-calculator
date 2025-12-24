@@ -1,4 +1,4 @@
-import { FeeBreakdown } from "../types";
+import { FeeBreakdown, PlanDetails, WhatsAppRates, AddonPricing } from "../types";
 
 // Discount types
 export interface DiscountValue {
@@ -48,6 +48,11 @@ export interface SummaryTabProps {
   monthlyFees: number;
   setupFees: number;
   feeBreakdown: FeeBreakdown;
+  
+  // Pricing configuration (dynamic from Firestore)
+  planDetails: PlanDetails;
+  whatsappRates: WhatsAppRates;
+  addons: AddonPricing;
 
   // Add-on states
   giftCard: boolean;
@@ -111,6 +116,9 @@ export interface BasicFeesSectionProps {
   feeBreakdown: FeeBreakdown;
   marketing: number;
   pushNotifications: boolean;
+  // Pricing configuration
+  planDetails: PlanDetails;
+  pushNotificationRate: number;
 }
 
 export interface ConnectionFeeBreakdownProps {
@@ -148,6 +156,9 @@ export interface AddOnsSectionProps {
   stores: number;
   monthlyFees: number;
   feeBreakdown: FeeBreakdown;
+  // Pricing configuration
+  whatsappRates: WhatsAppRates;
+  addons: AddonPricing;
 }
 
 export interface SetupFeeBreakdownProps {

@@ -33,7 +33,8 @@ export function useTokenManagement({
     try {
       const decodedString = atob(inputToken);
       const tokenData = JSON.parse(decodedString);
-      const paraphraseCheck = tokenData.paraphrase === "client-specific-encrypt-key";
+      console.log("aaaaa", tokenData.paraphrase)
+      const paraphraseCheck = tokenData.paraphrase === process.env.NEXT_PUBLIC_PARAPHASE_KEY;
       const expiryCheck = new Date(tokenData.expiresAt) > new Date();
       return paraphraseCheck && expiryCheck;
     } catch (error) {

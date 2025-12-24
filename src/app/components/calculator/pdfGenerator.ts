@@ -1,11 +1,12 @@
-import { FeeBreakdown, PlanDetails } from "./types";
+import { FeeBreakdown, PlanDetails, AddonPricing, SetupFeesConfig } from "./types";
 import {
   formatCurrency,
   getConnectionFeeBreakdown,
   getTransactionFeeBreakdown,
   getMarketingEmailBreakdown,
 } from "./utils";
-import { planDetails } from "./data";
+
+// No defaults - all pricing data must be passed as parameters
 
 // Declare window with jspdf property for TypeScript
 declare global {
@@ -61,6 +62,11 @@ interface PDFGeneratorParams {
   lastName: string;
   selectedConnectionTierIndex: number | null;
   whatsappRates: Record<string, { marketTicket: number; utility: number; marketing: number; otp: number }>;
+  // Required pricing configuration from Firestore
+  planDetails: PlanDetails;
+  addons: AddonPricing;
+  setupFeesConfig: SetupFeesConfig;
+  pushNotificationRate: number;
 }
 
 export function generatePDF(params: PDFGeneratorParams, jsPdfLoaded: boolean): void {
@@ -68,7 +74,7 @@ export function generatePDF(params: PDFGeneratorParams, jsPdfLoaded: boolean): v
     alert("PDF generation is loading. Please try again in a moment.");
     return;
   }
-  
+
   const {
     plan,
     stores,
@@ -92,6 +98,10 @@ export function generatePDF(params: PDFGeneratorParams, jsPdfLoaded: boolean): v
     firstName,
     lastName,
     selectedConnectionTierIndex,
+    planDetails,
+    addons,
+    setupFeesConfig,
+    pushNotificationRate,
   } = params;
 
   try {
@@ -180,7 +190,7 @@ export function generatePDF(params: PDFGeneratorParams, jsPdfLoaded: boolean): v
         doc.setTextColor(120, 120, 120);
         doc.text("Push Notifications:", 20, y);
         doc.setTextColor(40, 40, 40);
-        doc.text(formatCurrency(marketing * 0.0045), 190, y, { align: "right" });
+        doc.text(formatCurrency(marketing * pushNotificationRate), 190, y, { align: "right" });
         y += 7;
       }
     }
@@ -286,7 +296,7 @@ export function generatePDF(params: PDFGeneratorParams, jsPdfLoaded: boolean): v
         doc.setTextColor(40, 40, 40);
         doc.text(formatCurrency(tier.total), 190, y - 5, { align: "right" });
         doc.setTextColor(120, 120, 120);
-        doc.text("($500 base fee included)", 190, y, { align: "right" });
+        doc.text(`($${addons.giftCard.baseFee} base fee included)`, 190, y, { align: "right" });
         if (tier.isSelected) {
           doc.setTextColor(128, 0, 128);
           doc.text("(Selected)", 190, y + 5, { align: "right" });
@@ -324,14 +334,14 @@ export function generatePDF(params: PDFGeneratorParams, jsPdfLoaded: boolean): v
         doc.setTextColor(120, 120, 120);
         doc.text("Gift Card Base Fee:", 25, y);
         doc.setTextColor(40, 40, 40);
-        doc.text(formatCurrency(500), 190, y, { align: "right" });
+        doc.text(formatCurrency(addons.giftCard.baseFee), 190, y, { align: "right" });
         y += 6;
 
         y = checkPageBreak(10);
         doc.setTextColor(120, 120, 120);
-        doc.text(`Gift Card Per-Store Fee (${stores} stores @ $30/store):`, 25, y);
+        doc.text(`Gift Card Per-Store Fee (${stores} stores @ $${addons.giftCard.perStoreFee}/store):`, 25, y);
         doc.setTextColor(40, 40, 40);
-        doc.text(formatCurrency(stores * 30), 190, y, { align: "right" });
+        doc.text(formatCurrency(stores * addons.giftCard.perStoreFee), 190, y, { align: "right" });
         y += 6;
       }
 
@@ -349,7 +359,7 @@ export function generatePDF(params: PDFGeneratorParams, jsPdfLoaded: boolean): v
         doc.setTextColor(120, 120, 120);
         doc.text("WhatsApp Base Platform Fee:", 25, y);
         doc.setTextColor(40, 40, 40);
-        doc.text(formatCurrency(630), 190, y, { align: "right" });
+        doc.text(formatCurrency(feeBreakdown.whatsapp.base), 190, y, { align: "right" });
         y += 6;
 
         y = checkPageBreak(10);
@@ -450,7 +460,7 @@ export function generatePDF(params: PDFGeneratorParams, jsPdfLoaded: boolean): v
       doc.setTextColor(120, 120, 120);
       doc.text("Premium App Setup:", 25, y);
       doc.setTextColor(40, 40, 40);
-      doc.text(formatCurrency(15000), 190, y, { align: "right" });
+      doc.text(formatCurrency(setupFeesConfig.app.premium), 190, y, { align: "right" });
       y += 5;
     }
 
@@ -459,7 +469,7 @@ export function generatePDF(params: PDFGeneratorParams, jsPdfLoaded: boolean): v
       doc.setTextColor(120, 120, 120);
       doc.text("Standard App Setup:", 25, y);
       doc.setTextColor(40, 40, 40);
-      doc.text(formatCurrency(5000), 190, y, { align: "right" });
+      doc.text(formatCurrency(setupFeesConfig.app.standard), 190, y, { align: "right" });
       y += 5;
     }
 
@@ -468,7 +478,7 @@ export function generatePDF(params: PDFGeneratorParams, jsPdfLoaded: boolean): v
       doc.setTextColor(120, 120, 120);
       doc.text("PWA Setup:", 25, y);
       doc.setTextColor(40, 40, 40);
-      doc.text(formatCurrency(1000), 190, y, { align: "right" });
+      doc.text(formatCurrency(setupFeesConfig.app.pwa), 190, y, { align: "right" });
       y += 5;
     }
 
@@ -550,7 +560,7 @@ export function generatePDFAsBase64(params: PDFGeneratorParams, jsPdfLoaded: boo
   if (!jsPdfLoaded) {
     return "";
   }
-  
+
   const {
     plan,
     stores,
@@ -572,6 +582,10 @@ export function generatePDFAsBase64(params: PDFGeneratorParams, jsPdfLoaded: boo
     dataIngestion,
     pushNotifications,
     selectedConnectionTierIndex,
+    planDetails,
+    addons,
+    setupFeesConfig,
+    pushNotificationRate,
   } = params;
 
   try {
@@ -660,7 +674,7 @@ export function generatePDFAsBase64(params: PDFGeneratorParams, jsPdfLoaded: boo
         doc.setTextColor(120, 120, 120);
         doc.text("Push Notifications:", 20, y);
         doc.setTextColor(40, 40, 40);
-        doc.text(formatCurrency(marketing * 0.0045), 190, y, { align: "right" });
+        doc.text(formatCurrency(marketing * pushNotificationRate), 190, y, { align: "right" });
         y += 7;
       }
     }
@@ -766,7 +780,7 @@ export function generatePDFAsBase64(params: PDFGeneratorParams, jsPdfLoaded: boo
         doc.setTextColor(40, 40, 40);
         doc.text(formatCurrency(tier.total), 190, y - 5, { align: "right" });
         doc.setTextColor(120, 120, 120);
-        doc.text("($500 base fee included)", 190, y, { align: "right" });
+        doc.text(`($${addons.giftCard.baseFee} base fee included)`, 190, y, { align: "right" });
         if (tier.isSelected) {
           doc.setTextColor(128, 0, 128);
           doc.text("(Selected)", 190, y + 5, { align: "right" });
@@ -804,14 +818,14 @@ export function generatePDFAsBase64(params: PDFGeneratorParams, jsPdfLoaded: boo
         doc.setTextColor(120, 120, 120);
         doc.text("Gift Card Base Fee:", 25, y);
         doc.setTextColor(40, 40, 40);
-        doc.text(formatCurrency(500), 190, y, { align: "right" });
+        doc.text(formatCurrency(addons.giftCard.baseFee), 190, y, { align: "right" });
         y += 6;
 
         y = checkPageBreak(10);
         doc.setTextColor(120, 120, 120);
-        doc.text(`Gift Card Per-Store Fee (${stores} stores @ $30/store):`, 25, y);
+        doc.text(`Gift Card Per-Store Fee (${stores} stores @ $${addons.giftCard.perStoreFee}/store):`, 25, y);
         doc.setTextColor(40, 40, 40);
-        doc.text(formatCurrency(stores * 30), 190, y, { align: "right" });
+        doc.text(formatCurrency(stores * addons.giftCard.perStoreFee), 190, y, { align: "right" });
         y += 6;
       }
 
@@ -829,7 +843,7 @@ export function generatePDFAsBase64(params: PDFGeneratorParams, jsPdfLoaded: boo
         doc.setTextColor(120, 120, 120);
         doc.text("WhatsApp Base Platform Fee:", 25, y);
         doc.setTextColor(40, 40, 40);
-        doc.text(formatCurrency(630), 190, y, { align: "right" });
+        doc.text(formatCurrency(feeBreakdown.whatsapp.base), 190, y, { align: "right" });
         y += 6;
 
         y = checkPageBreak(10);
@@ -930,7 +944,7 @@ export function generatePDFAsBase64(params: PDFGeneratorParams, jsPdfLoaded: boo
       doc.setTextColor(120, 120, 120);
       doc.text("Premium App Setup:", 25, y);
       doc.setTextColor(40, 40, 40);
-      doc.text(formatCurrency(15000), 190, y, { align: "right" });
+      doc.text(formatCurrency(setupFeesConfig.app.premium), 190, y, { align: "right" });
       y += 5;
     }
 
@@ -939,7 +953,7 @@ export function generatePDFAsBase64(params: PDFGeneratorParams, jsPdfLoaded: boo
       doc.setTextColor(120, 120, 120);
       doc.text("Standard App Setup:", 25, y);
       doc.setTextColor(40, 40, 40);
-      doc.text(formatCurrency(5000), 190, y, { align: "right" });
+      doc.text(formatCurrency(setupFeesConfig.app.standard), 190, y, { align: "right" });
       y += 5;
     }
 
@@ -948,7 +962,7 @@ export function generatePDFAsBase64(params: PDFGeneratorParams, jsPdfLoaded: boo
       doc.setTextColor(120, 120, 120);
       doc.text("PWA Setup:", 25, y);
       doc.setTextColor(40, 40, 40);
-      doc.text(formatCurrency(1000), 190, y, { align: "right" });
+      doc.text(formatCurrency(setupFeesConfig.app.pwa), 190, y, { align: "right" });
       y += 5;
     }
 

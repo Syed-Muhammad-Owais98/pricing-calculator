@@ -1,7 +1,6 @@
 import React from "react";
 import { BasicFeesSectionProps } from "../types";
 import { formatCurrency, getMarketingEmailBreakdown } from "../../utils";
-import { planDetails } from "../../data";
 
 export const BasicFeesSection: React.FC<BasicFeesSectionProps> = ({
   plan,
@@ -9,6 +8,8 @@ export const BasicFeesSection: React.FC<BasicFeesSectionProps> = ({
   feeBreakdown,
   marketing,
   pushNotifications,
+  planDetails,
+  pushNotificationRate,
 }) => {
   return (
     <div className="grid grid-cols-2 gap-4 text-sm">
@@ -51,7 +52,7 @@ export const BasicFeesSection: React.FC<BasicFeesSectionProps> = ({
           </p>
         )}
         {plan !== "loyalty" && pushNotifications && (
-          <p>{formatCurrency(marketing * 0.0045)}</p>
+          <p>{formatCurrency(marketing * pushNotificationRate)}</p>
         )}
       </div>
     </div>

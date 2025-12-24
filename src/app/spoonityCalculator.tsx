@@ -12,15 +12,6 @@ import { CalculatorHeader } from "./components/calculator/CalculatorHeader";
 import { CalculatorTabs } from "./components/calculator/CalculatorTabs";
 import { CalculatorFooter } from "./components/calculator/CalculatorFooter";
 
-// Data
-import {
-  smsRates,
-  planDetails,
-  countryDialCodes,
-  whatsappAvailableCountries,
-  whatsappRates,
-} from "./components/calculator/data";
-
 // Types
 import { FeeBreakdown } from "./components/calculator/types";
 
@@ -40,6 +31,7 @@ import { generateQuoteDetails } from "./components/calculator/quoteUtils";
 // Hooks
 import { useStyles } from "./components/calculator/hooks/useStyles";
 import { useJsPdf } from "./components/calculator/hooks/useJsPdf";
+import { usePricingData } from "./components/calculator/hooks/usePricingData";
 
 // Constants
 import {
@@ -102,6 +94,23 @@ export default function SpoonityCalculator() {
 
   // PDF generation state
   const { jsPdfLoaded, isPdfGenerating, setIsPdfGenerating } = useJsPdf();
+
+  // Get pricing data from context (loaded from Firestore)
+  const {
+    planDetails,
+    smsRates,
+    countryDialCodes,
+    whatsappAvailableCountries,
+    whatsappRates,
+    connectionFeeTiers,
+    transactionFeeTiers,
+    marketingEmailConfig,
+    whatsappStoreFeeConfig,
+    addons,
+    setupFees: setupFeesConfig,
+    isLoading: pricingLoading,
+    error: pricingError,
+  } = usePricingData();
 
   // State for user data
   const [firstName, setFirstName] = React.useState("");
@@ -190,7 +199,7 @@ export default function SpoonityCalculator() {
       const decodedString = atob(inputToken);
       const tokenData = JSON.parse(decodedString);
       const paraphraseCheck =
-        tokenData.paraphrase === "client-specific-encrypt-key";
+        tokenData.paraphrase === process.env.NEXT_PUBLIC_PARAPHASE_KEY;
       const expiryCheck = new Date(tokenData.expiresAt) > new Date();
       return paraphraseCheck && expiryCheck;
     } catch (error) {
@@ -390,10 +399,10 @@ export default function SpoonityCalculator() {
     saveTokenAndData(token, {
       firstName: finalFirstName,
       lastName: finalLastName,
-      email: email.trim(),
-      phone: phone.trim(),
+      email: email?.trim(),
+      phone: phone?.trim(),
       company: finalCompany,
-      role: role.trim(),
+      role: role?.trim(),
       country: country === "Other" ? otherCountry : country,
       businessType,
     });
@@ -447,6 +456,13 @@ export default function SpoonityCalculator() {
       pushNotifications,
       businessType,
       selectedConnectionTierIndex,
+      // Pass dynamic pricing configuration
+      planDetails,
+      smsRates,
+      whatsappRates,
+      addons,
+      setupFeesConfig,
+      pushNotificationRate: marketingEmailConfig.pushNotificationRate,
     });
 
     const pdfBase64 = generatePDFAsBase64(
@@ -479,6 +495,11 @@ export default function SpoonityCalculator() {
         lastName,
         selectedConnectionTierIndex,
         whatsappRates,
+        // Pass dynamic pricing configuration
+        planDetails,
+        addons,
+        setupFeesConfig,
+        pushNotificationRate: marketingEmailConfig.pushNotificationRate,
       },
       jsPdfLoaded
     );
@@ -524,7 +545,7 @@ export default function SpoonityCalculator() {
     };
 
     try {
-      const webhookUrl = "https://hooks.zapier.com/hooks/catch/57845/20qrdnf/";
+      const webhookUrl = process.env.WEBHOOK_URL as string;
       addLog("Sending data to webhook", formData);
 
       localStorage.setItem("spoonity_submission_pending", "true");
@@ -557,47 +578,63 @@ export default function SpoonityCalculator() {
     }
   };
 
-  // Calculate the fees
+  // Calculate the fees using dynamic pricing configuration
   function calculateFees() {
-    let monthly = planDetails[plan].base;
+    let monthly = planDetails[plan]?.base || 1000;
     let connectionFees = calculateConnectionFees(
       stores,
-      selectedConnectionTierIndex
+      selectedConnectionTierIndex,
+      connectionFeeTiers
     );
     monthly += connectionFees;
 
+    // Calculate transaction fees using dynamic tiers
     let transactionVolume = 0.25 * (stores * transactions);
     let transactionFees = 0;
-    if (transactionVolume > 50000) {
-      transactionFees = transactionVolume * 0.002;
-    } else if (transactionVolume > 5000) {
-      transactionFees = transactionVolume * 0.003;
-    } else {
-      transactionFees = transactionVolume * 0.005;
+    // Find applicable transaction fee rate from dynamic tiers
+    const sortedTxnTiers = [...transactionFeeTiers].sort(
+      (a, b) => a.max - b.max
+    );
+    for (const tier of sortedTxnTiers) {
+      if (transactionVolume <= tier.max) {
+        transactionFees = transactionVolume * tier.rate;
+        break;
+      }
+    }
+    // If volume exceeds all tiers, use the last tier
+    if (transactionFees === 0 && sortedTxnTiers.length > 0) {
+      transactionFees =
+        transactionVolume * sortedTxnTiers[sortedTxnTiers.length - 1].rate;
     }
     monthly += transactionFees;
 
     let marketingFees = 0;
     if (plan !== "loyalty") {
-      const breakdown = getMarketingEmailBreakdown(marketing);
+      const breakdown = getMarketingEmailBreakdown(
+        marketing,
+        marketingEmailConfig.tiers,
+        marketingEmailConfig.baseFee
+      );
       const selectedTier = breakdown.find((tier) => tier.isSelected);
       marketingFees = selectedTier ? selectedTier.total : 0;
       monthly += marketingFees;
 
       if (pushNotifications) {
-        monthly += marketing * 0.0045;
+        monthly += marketing * marketingEmailConfig.pushNotificationRate;
       }
     }
 
     let giftCardFees = 0;
     if (giftCard) {
-      giftCardFees = 500 + stores * 30;
+      giftCardFees =
+        addons.giftCard.baseFee + stores * addons.giftCard.perStoreFee;
       monthly += giftCardFees;
     }
 
     let smsFees = 0;
     if (smsEnabled && smsMessages && parseInt(smsMessages) > 0) {
-      smsFees = parseFloat(smsMessages) * smsRates[smsCountry];
+      const rate = smsRates[smsCountry] || 0.01;
+      smsFees = parseFloat(smsMessages) * rate;
       monthly += smsFees;
     }
 
@@ -607,14 +644,19 @@ export default function SpoonityCalculator() {
     let whatsappTotalFee = 0;
 
     if (whatsappEnabled) {
-      whatsappBaseFee = 630;
-      whatsappPerStoreFee = calculateWhatsappStoreFeeTiers(stores);
+      whatsappBaseFee = whatsappStoreFeeConfig.baseFee;
+      whatsappPerStoreFee = calculateWhatsappStoreFeeTiers(
+        stores,
+        whatsappStoreFeeConfig.tiers
+      );
       const countryRates = whatsappRates[whatsappCountry];
-      whatsappMessageFees =
-        whatsappMarketTicket * countryRates.marketTicket +
-        whatsappUtility * countryRates.utility +
-        whatsappMarketing * countryRates.marketing +
-        whatsappOtp * countryRates.otp;
+      if (countryRates) {
+        whatsappMessageFees =
+          whatsappMarketTicket * countryRates.marketTicket +
+          whatsappUtility * countryRates.utility +
+          whatsappMarketing * countryRates.marketing +
+          whatsappOtp * countryRates.otp;
+      }
       whatsappTotalFee =
         whatsappBaseFee + whatsappPerStoreFee + whatsappMessageFees;
       monthly += whatsappTotalFee;
@@ -622,33 +664,36 @@ export default function SpoonityCalculator() {
 
     let serverFees = 0;
     if (independentServer) {
-      serverFees = 500;
+      serverFees = addons.server.baseFee;
       monthly += serverFees;
     }
 
     let slaFees = 0;
     if (premiumSLA) {
-      slaFees = 2000;
+      slaFees = addons.sla.baseFee;
       monthly += slaFees;
     }
 
     let cmsFees = 0;
     if (cms) {
-      cmsFees = 530;
+      cmsFees = addons.cms.baseFee;
       monthly += cmsFees;
     }
 
     let appFees = 0;
     if (appType === "premium") {
-      appFees = 1080;
+      appFees = addons.app.premium;
       monthly += appFees;
       if (!cms) {
         setCms(true);
-        cmsFees = 530;
+        cmsFees = addons.cms.baseFee;
         monthly += cmsFees;
       }
-    } else if (appType === "standard" || appType === "pwa") {
-      appFees = 350;
+    } else if (appType === "standard") {
+      appFees = addons.app.standard;
+      monthly += appFees;
+    } else if (appType === "pwa") {
+      appFees = addons.app.pwa;
       monthly += appFees;
     }
 
@@ -662,7 +707,10 @@ export default function SpoonityCalculator() {
       return Math.min(d.value, amount);
     };
 
-    const dBase = getItemDiscount("baseLicense", planDetails[plan].base);
+    const dBase = getItemDiscount(
+      "baseLicense",
+      planDetails[plan]?.base || 1000
+    );
     const dConn = getItemDiscount("connection", connectionFees);
     const dTxn = getItemDiscount("transaction", transactionFees);
     const dMkt = getItemDiscount("marketing", marketingFees);
@@ -694,7 +742,9 @@ export default function SpoonityCalculator() {
     let supportFees = 0;
     let supportDiscountApplied = 0;
     if (premiumSupport) {
-      supportFees = 2000 + currentTotalBeforeSupport * 0.1;
+      supportFees =
+        addons.support.baseFee +
+        currentTotalBeforeSupport * addons.support.percentage;
       if (discountUnlocked) {
         const supportDiscount = getItemDiscount("support", supportFees);
         supportDiscountApplied = supportDiscount;
@@ -717,24 +767,28 @@ export default function SpoonityCalculator() {
       monthly = Math.max(0, monthly - subtotalDiscountAmount);
     }
 
-    let onboardingFee = currentTotalBeforeSupport * 0.33 * 3;
+    let onboardingFee =
+      currentTotalBeforeSupport *
+      setupFeesConfig.onboarding.rate *
+      setupFeesConfig.onboarding.months;
     let setup = onboardingFee;
 
     let appSetupFee = 0;
     if (appType === "premium") {
-      appSetupFee = 15000;
+      appSetupFee = setupFeesConfig.app.premium;
       setup += appSetupFee;
     } else if (appType === "standard") {
-      appSetupFee = 5000;
+      appSetupFee = setupFeesConfig.app.standard;
       setup += appSetupFee;
     } else if (appType === "pwa") {
-      appSetupFee = 1000;
+      appSetupFee = setupFeesConfig.app.pwa;
       setup += appSetupFee;
     }
 
     let dataIngestionFee = 0;
     if (dataIngestion) {
-      dataIngestionFee = currentTotalBeforeSupport * 0.2;
+      dataIngestionFee =
+        currentTotalBeforeSupport * setupFeesConfig.dataIngestion.percentage;
       setup += dataIngestionFee;
     }
 
@@ -753,7 +807,7 @@ export default function SpoonityCalculator() {
       total: monthly,
       subtotal: monthlySubtotal,
       connection: connectionFees,
-      baseLicense: planDetails[plan].base,
+      baseLicense: planDetails[plan]?.base || 1000,
       transaction: transactionFees,
       marketing: marketingFees,
       giftCard: giftCardFees,
@@ -773,7 +827,7 @@ export default function SpoonityCalculator() {
       itemDiscounts: totalItemDiscounts,
       subtotalDiscountAmount: subtotalDiscountAmount,
       net: {
-        baseLicense: Math.max(0, planDetails[plan].base - dBase),
+        baseLicense: Math.max(0, (planDetails[plan]?.base || 1000) - dBase),
         connection: Math.max(0, connectionFees - dConn),
         transaction: Math.max(0, transactionFees - dTxn),
         marketing: Math.max(0, marketingFees - dMkt),
@@ -800,6 +854,9 @@ export default function SpoonityCalculator() {
 
   // Calculate fees whenever inputs change
   React.useEffect(() => {
+    // Wait for pricing data to be loaded
+    if (pricingLoading) return;
+
     const fees = calculateFees();
     setFeeBreakdown(fees);
   }, [
@@ -829,6 +886,17 @@ export default function SpoonityCalculator() {
     appliedSubtotalDiscount,
     appliedItemDiscounts,
     selectedConnectionTierIndex,
+    // Pricing data dependencies
+    pricingLoading,
+    planDetails,
+    connectionFeeTiers,
+    transactionFeeTiers,
+    marketingEmailConfig,
+    smsRates,
+    whatsappStoreFeeConfig,
+    whatsappRates,
+    addons,
+    setupFeesConfig,
   ]);
 
   // Calculate default SMS message count
@@ -850,12 +918,12 @@ export default function SpoonityCalculator() {
     }
   }, [stores, transactions, whatsappEnabled]);
 
-  // Ensure independent server for >50 stores
+  // Ensure independent server for stores above threshold
   React.useEffect(() => {
-    if (stores > 50) {
+    if (stores > addons.server.autoApplyAboveStores) {
       setIndependentServer(true);
     }
-  }, [stores]);
+  }, [stores, addons.server.autoApplyAboveStores]);
 
   // Update phone number when country changes
   React.useEffect(() => {
@@ -932,6 +1000,11 @@ export default function SpoonityCalculator() {
             lastName,
             selectedConnectionTierIndex,
             whatsappRates,
+            // Pass dynamic pricing configuration
+            planDetails,
+            addons,
+            setupFeesConfig,
+            pushNotificationRate: marketingEmailConfig.pushNotificationRate,
           },
           jsPdfLoaded
         );
@@ -971,6 +1044,9 @@ export default function SpoonityCalculator() {
         businessType={businessType}
         setBusinessType={setBusinessType}
         onLogin={handleLogin}
+        // Pricing configuration from Firestore
+        smsRates={smsRates}
+        countryDialCodes={countryDialCodes}
       />
     );
   }
@@ -1023,6 +1099,9 @@ export default function SpoonityCalculator() {
           isPdfGenerating={isPdfGenerating}
           onGeneratePDF={handleGeneratePDF}
           onReset={resetAllStates}
+          // Pricing configuration from Firestore
+          planDetails={planDetails}
+          whatsappRates={whatsappRates}
         />
       ) : (
         <div className="border rounded-lg shadow-sm overflow-hidden">
@@ -1046,6 +1125,9 @@ export default function SpoonityCalculator() {
               marketing={marketing}
               setMarketing={setMarketing}
               handleTabChange={handleTabChange}
+              // Pricing configuration from Firestore
+              planDetails={planDetails}
+              serverAutoApplyAboveStores={addons.server.autoApplyAboveStores}
             />
           )}
 
@@ -1092,6 +1174,13 @@ export default function SpoonityCalculator() {
               country={country}
               feeBreakdown={feeBreakdown}
               handleTabChange={handleTabChange}
+              // Pricing configuration from Firestore
+              smsRates={smsRates}
+              whatsappRates={whatsappRates}
+              whatsappAvailableCountries={whatsappAvailableCountries}
+              whatsappStoreFeeConfig={whatsappStoreFeeConfig}
+              addons={addons}
+              setupFees={setupFeesConfig}
             />
           )}
 
@@ -1105,6 +1194,10 @@ export default function SpoonityCalculator() {
               monthlyFees={monthlyFees}
               setupFees={setupFees}
               feeBreakdown={feeBreakdown}
+              // Pricing configuration from Firestore
+              planDetails={planDetails}
+              whatsappRates={whatsappRates}
+              addons={addons}
               giftCard={giftCard}
               smsEnabled={smsEnabled}
               smsMessages={smsMessages}

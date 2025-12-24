@@ -1,5 +1,5 @@
 import React from "react";
-import { planDetails } from "./data";
+import { PlanDetails } from "./types";
 
 interface CalculatorInputTabProps {
   plan: string;
@@ -11,6 +11,9 @@ interface CalculatorInputTabProps {
   marketing: number;
   setMarketing: (marketing: number) => void;
   handleTabChange: (tab: string) => void;
+  // Pricing configuration (dynamic from Firestore)
+  planDetails: PlanDetails;
+  serverAutoApplyAboveStores: number;
 }
 
 export const CalculatorInputTab: React.FC<CalculatorInputTabProps> = ({
@@ -23,6 +26,9 @@ export const CalculatorInputTab: React.FC<CalculatorInputTabProps> = ({
   marketing,
   setMarketing,
   handleTabChange,
+  // Pricing configuration
+  planDetails,
+  serverAutoApplyAboveStores,
 }) => {
   return (
     <div className="p-6">
@@ -108,11 +114,11 @@ export const CalculatorInputTab: React.FC<CalculatorInputTabProps> = ({
 
             <p
               className={`text-xs ${
-                stores > 50 ? "text-amber-600 font-medium" : "text-gray-500"
+                stores > serverAutoApplyAboveStores ? "text-amber-600 font-medium" : "text-gray-500"
               }`}
             >
-              {stores > 50
-                ? "⚠️ More than 50 stores requires an independent server (automatically added)"
+              {stores > serverAutoApplyAboveStores
+                ? `⚠️ More than ${serverAutoApplyAboveStores} stores requires an independent server (automatically added)`
                 : "How many physical locations do you operate?"}
             </p>
           </div>

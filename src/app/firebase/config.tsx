@@ -13,13 +13,13 @@ const firebaseConfig = {
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 // Check if window is undefined (SSR) before initializing analytics
-const analytics = typeof window !== 'undefined' ? getAnalytics(app) : null;
+const analytics = typeof window !== "undefined" ? getAnalytics(app) : null;
 import { getFirestore } from "firebase/firestore";
 export const db = getFirestore(app);
 export { app, analytics };

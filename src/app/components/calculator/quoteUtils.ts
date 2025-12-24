@@ -1,11 +1,12 @@
-import { FeeBreakdown } from "./types";
+import { FeeBreakdown, PlanDetails, WhatsAppRates, AddonPricing, SetupFeesConfig } from "./types";
 import {
   formatCurrency,
   getConnectionFeeBreakdown,
   getTransactionFeeBreakdown,
   getMarketingEmailBreakdown,
 } from "./utils";
-import { planDetails, smsRates, whatsappRates } from "./data";
+
+// No defaults - all pricing data must be passed as parameters
 
 interface QuoteParams {
   plan: string;
@@ -35,6 +36,13 @@ interface QuoteParams {
   pushNotifications: boolean;
   businessType: string;
   selectedConnectionTierIndex: number | null;
+  // Required pricing configuration from Firestore
+  planDetails: PlanDetails;
+  smsRates: Record<string, number>;
+  whatsappRates: WhatsAppRates;
+  addons: AddonPricing;
+  setupFeesConfig: SetupFeesConfig;
+  pushNotificationRate: number;
 }
 
 export function getQuoteDetails(params: QuoteParams): string[] {
@@ -57,14 +65,16 @@ export function getQuoteDetails(params: QuoteParams): string[] {
     marketing,
     cms,
     appType,
+    whatsappRates,
+    addons,
   } = params;
 
   const addOns = [];
 
   if (giftCard) {
-    addOns.push(`Gift Card Base Fee: ${formatCurrency(500)}`);
+    addOns.push(`Gift Card Base Fee: ${formatCurrency(addons.giftCard.baseFee)}`);
     addOns.push(
-      `Gift Card Per-Store Fee (${stores} stores @ $30/store): ${formatCurrency(stores * 30)}`
+      `Gift Card Per-Store Fee (${stores} stores @ ${formatCurrency(addons.giftCard.perStoreFee)}/store): ${formatCurrency(stores * addons.giftCard.perStoreFee)}`
     );
   }
 
@@ -74,8 +84,8 @@ export function getQuoteDetails(params: QuoteParams): string[] {
     );
   }
 
-  if (whatsappEnabled) {
-    addOns.push(`WhatsApp Base Platform Fee: ${formatCurrency(630)}/month`);
+  if (whatsappEnabled && whatsappRates[whatsappCountry]) {
+    addOns.push(`WhatsApp Base Platform Fee: ${formatCurrency(feeBreakdown.whatsapp.base)}/month`);
     addOns.push(
       `WhatsApp Per-Store Fee (${stores} stores): ${formatCurrency(feeBreakdown.whatsapp.perStore)}/month`
     );
@@ -154,14 +164,20 @@ export function generateQuoteDetails(params: QuoteParams) {
     pushNotifications,
     businessType,
     selectedConnectionTierIndex,
+    planDetails,
+    smsRates,
+    whatsappRates,
+    addons,
+    setupFeesConfig,
+    pushNotificationRate,
   } = params;
 
   const quoteDetails = {
     plan: {
-      name: planDetails[plan].name,
+      name: planDetails[plan]?.name || plan,
       type: plan,
-      baseFee: formatCurrency(planDetails[plan].base),
-      description: planDetails[plan].description,
+      baseFee: formatCurrency(planDetails[plan]?.base || 0),
+      description: planDetails[plan]?.description || "",
     },
     business: {
       stores: stores,
@@ -175,12 +191,12 @@ export function generateQuoteDetails(params: QuoteParams) {
             emails: marketing,
             pushNotifications: pushNotifications,
             pushNotificationCost: pushNotifications
-              ? formatCurrency(marketing * 0.0045)
+              ? formatCurrency(marketing * pushNotificationRate)
               : "$0.00",
           }
         : null,
     fees: {
-      baseLicense: formatCurrency(planDetails[plan].base),
+      baseLicense: formatCurrency(planDetails[plan]?.base || 0),
       connectionFees: formatCurrency(feeBreakdown.connection),
       transactionProcessing: formatCurrency(feeBreakdown.transaction),
       marketingFees:
@@ -222,9 +238,9 @@ export function generateQuoteDetails(params: QuoteParams) {
       giftCard: giftCard
         ? {
             enabled: true,
-            baseFee: formatCurrency(500),
-            perStoreFee: formatCurrency(stores * 30),
-            total: formatCurrency(500 + stores * 30),
+            baseFee: formatCurrency(addons.giftCard.baseFee),
+            perStoreFee: formatCurrency(stores * addons.giftCard.perStoreFee),
+            total: formatCurrency(addons.giftCard.baseFee + stores * addons.giftCard.perStoreFee),
           }
         : { enabled: false },
       sms:
@@ -233,15 +249,15 @@ export function generateQuoteDetails(params: QuoteParams) {
               enabled: true,
               country: smsCountry,
               messages: parseInt(smsMessages),
-              rate: `$${smsRates[smsCountry].toFixed(5)}`,
+              rate: `$${(smsRates[smsCountry] || 0).toFixed(5)}`,
               total: formatCurrency(feeBreakdown.sms),
             }
           : { enabled: false },
-      whatsapp: whatsappEnabled
+      whatsapp: whatsappEnabled && whatsappRates[whatsappCountry]
         ? {
             enabled: true,
             country: whatsappCountry,
-            baseFee: formatCurrency(630),
+            baseFee: formatCurrency(feeBreakdown.whatsapp.base),
             perStoreFee: formatCurrency(feeBreakdown.whatsapp.perStore),
             messages: {
               digitalReceipts: {
@@ -299,7 +315,7 @@ export function generateQuoteDetails(params: QuoteParams) {
         enabled: dataIngestion,
         cost: dataIngestion
           ? formatCurrency(
-              (monthlyFees - (premiumSupport ? 2000 + monthlyFees * 0.1 : 0)) * 0.2
+              (monthlyFees - (premiumSupport ? addons.support.baseFee + monthlyFees * addons.support.percentage : 0)) * addons.dataIngestion.percentage
             )
           : "$0.00",
       },
@@ -308,11 +324,11 @@ export function generateQuoteDetails(params: QuoteParams) {
       onboarding: formatCurrency(feeBreakdown.setup.onboarding),
       appSetup:
         appType === "premium"
-          ? formatCurrency(15000)
+          ? formatCurrency(setupFeesConfig.app.premium)
           : appType === "standard"
-          ? formatCurrency(5000)
+          ? formatCurrency(setupFeesConfig.app.standard)
           : appType === "pwa"
-          ? formatCurrency(1000)
+          ? formatCurrency(setupFeesConfig.app.pwa)
           : "$0.00",
       dataIngestion: dataIngestion
         ? formatCurrency(feeBreakdown.setup.dataIngestion)
@@ -329,4 +345,3 @@ export function generateQuoteDetails(params: QuoteParams) {
 
   return quoteDetails;
 }
-

@@ -1,4 +1,4 @@
-import { FeeBreakdown } from "../types";
+import { FeeBreakdown, PlanDetails, WhatsAppRates } from "../types";
 
 export interface SuccessScreenProps {
   // User info
@@ -57,5 +57,9 @@ export interface SuccessScreenProps {
   isPdfGenerating: boolean;
   onGeneratePDF: () => void;
   onReset: () => void;
+  
+  // Pricing configuration (dynamic from Firestore)
+  planDetails: PlanDetails;
+  whatsappRates: WhatsAppRates;
 }
 

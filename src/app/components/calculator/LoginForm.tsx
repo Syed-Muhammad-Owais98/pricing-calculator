@@ -1,5 +1,4 @@
 import React from "react";
-import { smsRates, countryDialCodes } from "./data";
 
 interface LoginFormProps {
   token: string;
@@ -25,6 +24,9 @@ interface LoginFormProps {
   businessType: string;
   setBusinessType: (value: string) => void;
   onLogin: (e: React.FormEvent) => void;
+  // Pricing configuration (dynamic from Firestore)
+  smsRates: Record<string, number>;
+  countryDialCodes: Record<string, string>;
 }
 
 export const LoginForm: React.FC<LoginFormProps> = ({
@@ -51,6 +53,9 @@ export const LoginForm: React.FC<LoginFormProps> = ({
   businessType,
   setBusinessType,
   onLogin,
+  // Pricing configuration
+  smsRates,
+  countryDialCodes,
 }) => {
   return (
     <div className="w-full max-w-md mx-auto p-6">
@@ -84,7 +89,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
                 className={`w-full border rounded-md p-2.5 input-field ${
                   tokenError ? "border-red-500" : ""
                 }`}
-                value={token}
+                value={token || ""}
                 onChange={(e) => {
                   setToken(e.target.value);
                   setTokenError("");
@@ -107,7 +112,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
               <select
                 id="country"
                 className="w-full border rounded-md p-2.5 input-field"
-                value={country}
+                value={country || ""}
                 onChange={(e) => {
                   setCountry(e.target.value);
                   if (e.target.value === "Other") {
@@ -137,7 +142,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
                   id="otherCountry"
                   type="text"
                   className="w-full border rounded-md p-2.5 input-field"
-                  value={otherCountry}
+                  value={otherCountry || ""}
                   onChange={(e) => setOtherCountry(e.target.value)}
                   required
                   placeholder="Enter your country"
@@ -156,7 +161,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
                 id="firstName"
                 type="text"
                 className="w-full border rounded-md p-2.5 input-field"
-                value={firstName}
+                value={firstName || ""}
                 onChange={(e) => setFirstName(e.target.value)}
                 placeholder="John (optional)"
               />
@@ -173,7 +178,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
                 id="lastName"
                 type="text"
                 className="w-full border rounded-md p-2.5 input-field"
-                value={lastName}
+                value={lastName || ""}
                 onChange={(e) => setLastName(e.target.value)}
                 placeholder="Doe (optional)"
               />
@@ -188,7 +193,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
               id="email"
               type="email"
               className="w-full border rounded-md p-2.5 input-field"
-              value={email}
+              value={email || ""}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com (optional)"
             />
@@ -202,7 +207,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
               id="phone"
               type="tel"
               className="w-full border rounded-md p-2.5 input-field"
-              value={phone}
+              value={phone || ""}
               onChange={(e) => {
                 const value = e.target.value;
                 // Only allow numbers and '+' symbol
@@ -211,13 +216,13 @@ export const LoginForm: React.FC<LoginFormProps> = ({
                 }
               }}
               placeholder={
-                country !== "Other"
+                country !== "Other" && countryDialCodes[country]
                   ? `${countryDialCodes[country]} followed by your number (optional)`
                   : "Enter phone number (optional)"
               }
             />
             <p className="text-xs text-gray-500 mt-1">
-              {country !== "Other"
+              {country !== "Other" && countryDialCodes[country]
                 ? `Country code ${countryDialCodes[country]} will be automatically added`
                 : "Please include country code"}
             </p>
@@ -234,7 +239,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
               id="company"
               type="text"
               className="w-full border rounded-md p-2.5 input-field"
-              value={company}
+              value={company || ""}
               onChange={(e) => setCompany(e.target.value)}
               placeholder="Spoonity (optional)"
             />
@@ -248,7 +253,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
               id="role"
               type="text"
               className="w-full border rounded-md p-2.5 input-field"
-              value={role}
+              value={role || ""}
               onChange={(e) => setRole(e.target.value)}
               placeholder="Marketing Manager (optional)"
             />

@@ -1,6 +1,5 @@
 import React from "react";
 import { SummaryTabProps } from "./types";
-import { planDetails } from "../data";
 import {
   PlanHeader,
   BasicFeesSection,
@@ -24,6 +23,11 @@ export const SummaryTab: React.FC<SummaryTabProps> = ({
   monthlyFees,
   setupFees,
   feeBreakdown,
+  
+  // Pricing configuration
+  planDetails,
+  whatsappRates,
+  addons,
 
   // Add-on states
   giftCard,
@@ -112,6 +116,8 @@ export const SummaryTab: React.FC<SummaryTabProps> = ({
                 feeBreakdown={feeBreakdown}
                 marketing={marketing}
                 pushNotifications={pushNotifications}
+                planDetails={planDetails}
+                pushNotificationRate={0.0045}
               />
 
               {/* Connection Fee Tier Breakdown */}
@@ -148,6 +154,8 @@ export const SummaryTab: React.FC<SummaryTabProps> = ({
                 stores={stores}
                 monthlyFees={monthlyFees}
                 feeBreakdown={feeBreakdown}
+                whatsappRates={whatsappRates}
+                addons={addons}
               />
 
               {/* Setup Fee Breakdown */}

@@ -1,6 +1,5 @@
 import React from "react";
 import { AddOnsTabProps } from "./types";
-import { smsRates, whatsappRates, whatsappAvailableCountries } from "./data";
 import { formatCurrency, calculateWhatsappStoreFeeTiers } from "./utils";
 
 export const AddOnsTab: React.FC<AddOnsTabProps> = ({
@@ -53,6 +52,14 @@ export const AddOnsTab: React.FC<AddOnsTabProps> = ({
   country,
   feeBreakdown,
   handleTabChange,
+
+  // Pricing configuration (dynamic from Firestore)
+  smsRates,
+  whatsappRates,
+  whatsappAvailableCountries,
+  whatsappStoreFeeConfig,
+  addons,
+  setupFees,
 }) => {
   return (
     <div className="p-6">
@@ -161,7 +168,7 @@ export const AddOnsTab: React.FC<AddOnsTabProps> = ({
                   WhatsApp Platform for Loyalty and Digital Receipts
                 </label>
                 <p className="text-xs text-gray-500">
-                  Base fee: $630/month + tiered per-location fees
+                  Base fee: {formatCurrency(whatsappStoreFeeConfig.baseFee)}/month + tiered per-location fees
                 </p>
               </div>
             </div>
@@ -173,10 +180,17 @@ export const AddOnsTab: React.FC<AddOnsTabProps> = ({
                     Location Pricing Tiers
                   </label>
                   <div className="text-xs text-gray-600 grid grid-cols-2 gap-2">
-                    <div>Tier 1-10: $9.00/month/store</div>
-                    <div>Tier 11-80: $8.10/month/store</div>
-                    <div>Tier 81-149: $7.20/month/store</div>
-                    <div>Tier 150+: $6.30/month/store</div>
+                    {whatsappStoreFeeConfig.tiers.map((tier, index) => {
+                      const prevMax = index === 0 ? 0 : whatsappStoreFeeConfig.tiers[index - 1].max;
+                      const rangeStart = prevMax + 1;
+                      const rangeEnd = tier.max >= 99999 ? '+' : tier.max;
+                      const rangeLabel = rangeEnd === '+' ? `${rangeStart}+` : `${rangeStart}-${rangeEnd}`;
+                      return (
+                        <div key={index}>
+                          Tier {rangeLabel}: ${tier.rate.toFixed(2)}/month/store
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -295,14 +309,14 @@ export const AddOnsTab: React.FC<AddOnsTabProps> = ({
                   <div className="grid grid-cols-2 gap-1">
                     <span>Base Platform Fee:</span>
                     <span className="text-right">
-                      {formatCurrency(whatsappEnabled ? 630 : 0)}
+                      {formatCurrency(whatsappEnabled ? whatsappStoreFeeConfig.baseFee : 0)}
                     </span>
 
                     <span>Per-Location Fees ({stores} stores):</span>
                     <span className="text-right">
                       {formatCurrency(
                         whatsappEnabled
-                          ? calculateWhatsappStoreFeeTiers(stores)
+                          ? calculateWhatsappStoreFeeTiers(stores, whatsappStoreFeeConfig.tiers)
                           : 0
                       )}
                     </span>
@@ -446,7 +460,7 @@ export const AddOnsTab: React.FC<AddOnsTabProps> = ({
                   </p>
                 </div>
                 <div className="text-sm font-medium text-gray-900">
-                  $15,000 + $1,080/mo
+                  {formatCurrency(setupFees.app.premium)} + {formatCurrency(addons.app.premium)}/mo
                 </div>
               </div>
             </div>
@@ -481,7 +495,7 @@ export const AddOnsTab: React.FC<AddOnsTabProps> = ({
                   </p>
                 </div>
                 <div className="text-sm font-medium text-gray-900">
-                  $5,000 + $350/mo
+                  {formatCurrency(setupFees.app.standard)} + {formatCurrency(addons.app.standard)}/mo
                 </div>
               </div>
             </div>
@@ -514,7 +528,7 @@ export const AddOnsTab: React.FC<AddOnsTabProps> = ({
                   </p>
                 </div>
                 <div className="text-sm font-medium text-gray-900">
-                  $1,000 + $350/mo
+                  {formatCurrency(setupFees.app.pwa)} + {formatCurrency(addons.app.pwa)}/mo
                 </div>
               </div>
             </div>
@@ -540,7 +554,7 @@ export const AddOnsTab: React.FC<AddOnsTabProps> = ({
                   Gift Card Module
                 </label>
                 <p className="text-sm text-gray-600">
-                  $500 base fee + $30/store/month
+                  {formatCurrency(addons.giftCard.baseFee)} base fee + {formatCurrency(addons.giftCard.perStoreFee)}/store/month
                 </p>
               </div>
             </div>
@@ -567,7 +581,7 @@ export const AddOnsTab: React.FC<AddOnsTabProps> = ({
                     Push Notifications
                   </label>
                   <p className="text-sm text-gray-600">
-                    $0.0045 per push notification
+                    Variable rate per push notification
                   </p>
                 </div>
               </div>
@@ -585,7 +599,7 @@ export const AddOnsTab: React.FC<AddOnsTabProps> = ({
                 className="checkbox-custom"
                 checked={independentServer}
                 onChange={(e) => setIndependentServer(e.target.checked)}
-                disabled={stores > 50}
+                disabled={stores > addons.server.autoApplyAboveStores}
               />
               <div>
                 <label
@@ -593,9 +607,9 @@ export const AddOnsTab: React.FC<AddOnsTabProps> = ({
                   className="font-medium cursor-pointer"
                 >
                   Independent Server
-                  {stores > 50 ? " (Required)" : ""}
+                  {stores > addons.server.autoApplyAboveStores ? " (Required)" : ""}
                 </label>
-                <p className="text-sm text-gray-600">$500/month</p>
+                <p className="text-sm text-gray-600">{formatCurrency(addons.server.baseFee)}/month</p>
               </div>
             </div>
             <p className="text-xs text-gray-500 pl-7">
@@ -619,7 +633,7 @@ export const AddOnsTab: React.FC<AddOnsTabProps> = ({
                 >
                   Premium SLA
                 </label>
-                <p className="text-sm text-gray-600">$2,000/month</p>
+                <p className="text-sm text-gray-600">{formatCurrency(addons.sla.baseFee)}/month</p>
               </div>
             </div>
             <p className="text-xs text-gray-500 pl-7">
@@ -644,7 +658,7 @@ export const AddOnsTab: React.FC<AddOnsTabProps> = ({
                   Premium Support
                 </label>
                 <p className="text-sm text-gray-600">
-                  $2,000 + 10% of monthly fees
+                  {formatCurrency(addons.support.baseFee)} + {(addons.support.percentage * 100).toFixed(0)}% of monthly fees
                 </p>
               </div>
             </div>
@@ -669,7 +683,7 @@ export const AddOnsTab: React.FC<AddOnsTabProps> = ({
                 >
                   Data Ingestion
                 </label>
-                <p className="text-sm text-gray-600">20% of monthly fees</p>
+                <p className="text-sm text-gray-600">{(addons.dataIngestion.percentage * 100).toFixed(0)}% of monthly fees</p>
               </div>
             </div>
             <p className="text-xs text-gray-500 pl-7">
@@ -692,7 +706,7 @@ export const AddOnsTab: React.FC<AddOnsTabProps> = ({
                 <label htmlFor="cms" className="font-medium cursor-pointer">
                   Content Management System
                 </label>
-                <p className="text-sm text-gray-600">$530/month</p>
+                <p className="text-sm text-gray-600">{formatCurrency(addons.cms.baseFee)}/month</p>
               </div>
             </div>
             <p className="text-xs text-gray-500 pl-7">
