@@ -114,9 +114,13 @@ export const CalculatorInputTab: React.FC<CalculatorInputTabProps> = ({
 
             <p
               className={`text-xs ${
+<<<<<<< HEAD
                 stores > serverAutoApplyAboveStores
                   ? "text-amber-600 font-medium"
                   : "text-gray-500"
+=======
+                stores > serverAutoApplyAboveStores ? "text-amber-600 font-medium" : "text-gray-500"
+>>>>>>> b18d3d905fbc2fb6d8646b02ca7fccc90452253e
               }`}
             >
               {stores > serverAutoApplyAboveStores
