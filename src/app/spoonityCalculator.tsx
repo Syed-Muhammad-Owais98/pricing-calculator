@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React from "react";
 
@@ -220,7 +220,7 @@ export default function SpoonityCalculator() {
       role?: string;
       country?: string;
       businessType?: string;
-    }
+    },
   ) => {
     const expiryTime = Date.now() + TOKEN_EXPIRY;
     localStorage.setItem("spoonity_token", tokenValue);
@@ -237,7 +237,7 @@ export default function SpoonityCalculator() {
         country:
           userData?.country ?? (country === "Other" ? otherCountry : country),
         businessType: userData?.businessType ?? businessType,
-      })
+      }),
     );
   };
 
@@ -328,10 +328,10 @@ export default function SpoonityCalculator() {
       setCompany(parsedUserData.company);
       setRole(parsedUserData.role);
       setCountry(
-        parsedUserData.country === "Other" ? "Other" : parsedUserData.country
+        parsedUserData.country === "Other" ? "Other" : parsedUserData.country,
       );
       setOtherCountry(
-        parsedUserData.country === "Other" ? parsedUserData.country : ""
+        parsedUserData.country === "Other" ? parsedUserData.country : "",
       );
       setBusinessType(parsedUserData.businessType);
       setIsLoggedIn(true);
@@ -501,7 +501,7 @@ export default function SpoonityCalculator() {
         setupFeesConfig,
         pushNotificationRate: marketingEmailConfig.pushNotificationRate,
       },
-      jsPdfLoaded
+      jsPdfLoaded,
     );
 
     const formData = {
@@ -551,7 +551,7 @@ export default function SpoonityCalculator() {
       localStorage.setItem("spoonity_submission_pending", "true");
       localStorage.setItem(
         "spoonity_submission_data",
-        JSON.stringify({ firstName, lastName, email })
+        JSON.stringify({ firstName, lastName, email }),
       );
 
       await fetch(webhookUrl, {
@@ -584,7 +584,7 @@ export default function SpoonityCalculator() {
     let connectionFees = calculateConnectionFees(
       stores,
       selectedConnectionTierIndex,
-      connectionFeeTiers
+      connectionFeeTiers,
     );
     monthly += connectionFees;
 
@@ -593,7 +593,7 @@ export default function SpoonityCalculator() {
     let transactionFees = 0;
     // Find applicable transaction fee rate from dynamic tiers
     const sortedTxnTiers = [...transactionFeeTiers].sort(
-      (a, b) => a.max - b.max
+      (a, b) => a.max - b.max,
     );
     for (const tier of sortedTxnTiers) {
       if (transactionVolume <= tier.max) {
@@ -613,7 +613,7 @@ export default function SpoonityCalculator() {
       const breakdown = getMarketingEmailBreakdown(
         marketing,
         marketingEmailConfig.tiers,
-        marketingEmailConfig.baseFee
+        marketingEmailConfig.baseFee,
       );
       const selectedTier = breakdown.find((tier) => tier.isSelected);
       marketingFees = selectedTier ? selectedTier.total : 0;
@@ -647,7 +647,7 @@ export default function SpoonityCalculator() {
       whatsappBaseFee = whatsappStoreFeeConfig.baseFee;
       whatsappPerStoreFee = calculateWhatsappStoreFeeTiers(
         stores,
-        whatsappStoreFeeConfig.tiers
+        whatsappStoreFeeConfig.tiers,
       );
       const countryRates = whatsappRates[whatsappCountry];
       if (countryRates) {
@@ -709,7 +709,7 @@ export default function SpoonityCalculator() {
 
     const dBase = getItemDiscount(
       "baseLicense",
-      planDetails[plan]?.base || 1000
+      planDetails[plan]?.base || 1000,
     );
     const dConn = getItemDiscount("connection", connectionFees);
     const dTxn = getItemDiscount("transaction", transactionFees);
@@ -927,23 +927,37 @@ export default function SpoonityCalculator() {
 
   // Update phone number when country changes
   React.useEffect(() => {
+    const currentPhone = phone ?? "";
+
     if (country !== "Other") {
       const dialCode = countryDialCodes[country];
-      if (!phone.startsWith(dialCode)) {
+      if (dialCode && !currentPhone.startsWith(dialCode)) {
         setPhone(dialCode);
       }
       if (!whatsappAvailableCountries.includes(country)) {
         setWhatsappEnabled(false);
       }
     } else {
-      if (phone.startsWith("+")) {
-        setPhone("+");
-      } else if (!phone.startsWith("+")) {
+      if (!currentPhone.startsWith("+")) {
         setPhone("+");
       }
       setWhatsappEnabled(false);
     }
-  }, [country]);
+  }, [country, phone, countryDialCodes, whatsappAvailableCountries]);
+
+  // Show a full-page loader while pricing data is being fetched
+  if (pricingLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-black">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-gray-700 border-t-white rounded-full animate-spin" />
+          <p className="text-sm font-medium text-white">
+            Loading pricing data, please wait...
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   // Tab change handler
   const handleTabChange = (tab: string) => {
@@ -1006,7 +1020,7 @@ export default function SpoonityCalculator() {
             setupFeesConfig,
             pushNotificationRate: marketingEmailConfig.pushNotificationRate,
           },
-          jsPdfLoaded
+          jsPdfLoaded,
         );
       } catch (error) {
         console.error("Error in PDF generation:", error);
