@@ -38,7 +38,9 @@ export const CalculatorInputTab: React.FC<CalculatorInputTabProps> = ({
         <div>
           <label className="block text-sm font-medium mb-2">Plan Type</label>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            {Object.entries(planDetails).map(([key, details]) => (
+            {(["loyalty", "marketing", "intelligence"] as const)
+              .filter((key) => planDetails[key])
+              .map((key) => { const details = planDetails[key]; return (
               <div
                 key={key}
                 onClick={() => setPlan(key)}
@@ -72,7 +74,7 @@ export const CalculatorInputTab: React.FC<CalculatorInputTabProps> = ({
                   ${details.base}/mo
                 </div>
               </div>
-            ))}
+            ); })}
           </div>
         </div>
 
