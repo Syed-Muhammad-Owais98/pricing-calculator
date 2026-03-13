@@ -50,6 +50,10 @@ export const SuccessScreen: React.FC<SuccessScreenProps> = ({
   // Pricing configuration
   planDetails,
   whatsappRates,
+  addons,
+  setupFeesConfig,
+  marketingEmailConfig,
+  whatsappStoreFeeConfig,
   onReset,
 }) => {
   return (
@@ -96,11 +100,13 @@ export const SuccessScreen: React.FC<SuccessScreenProps> = ({
                     <p>
                       {(() => {
                         const selectedTier = getMarketingEmailBreakdown(
-                          marketing
+                          marketing,
+                          marketingEmailConfig.tiers,
+                          marketingEmailConfig.baseFee
                         ).find((t) => t.isSelected);
                         const display = selectedTier
-                          ? selectedTier.tierName !== "Tier 1"
-                            ? selectedTier.total - 500
+                          ? selectedTier.baseFee > 0
+                            ? selectedTier.total - marketingEmailConfig.baseFee
                             : selectedTier.total
                           : feeBreakdown.marketing;
                         return formatCurrency(display);
@@ -108,7 +114,7 @@ export const SuccessScreen: React.FC<SuccessScreenProps> = ({
                     </p>
                   )}
                   {plan !== "loyalty" && pushNotifications && (
-                    <p>{formatCurrency(marketing * 0.0045)}</p>
+                    <p>{formatCurrency(marketing * marketingEmailConfig.pushNotificationRate)}</p>
                   )}
                 </div>
               </div>
@@ -211,7 +217,11 @@ export const SuccessScreen: React.FC<SuccessScreenProps> = ({
                         Total Emails: {marketing.toLocaleString()}
                       </span>
                     </div>
-                    {getMarketingEmailBreakdown(marketing).map(
+                    {getMarketingEmailBreakdown(
+                      marketing,
+                      marketingEmailConfig.tiers,
+                      marketingEmailConfig.baseFee
+                    ).map(
                       (tier, index) => (
                         <div
                           key={index}
@@ -247,9 +257,11 @@ export const SuccessScreen: React.FC<SuccessScreenProps> = ({
                             >
                               {formatCurrency(tier.total)}
                             </span>
-                            <div className="text-xs text-gray-500">
-                              ($500 base fee included)
-                            </div>
+                            {tier.baseFee > 0 && (
+                              <div className="text-xs text-gray-500">
+                                ({formatCurrency(marketingEmailConfig.baseFee)} base fee included)
+                              </div>
+                            )}
                             {tier.isSelected && (
                               <div className="text-xs text-purple-600">
                                 Selected
@@ -282,7 +294,7 @@ export const SuccessScreen: React.FC<SuccessScreenProps> = ({
                           <p>Gift Card Base Fee</p>
                           <p>
                             Gift Card Per-Store Fee ({stores} stores @
-                            $30/store)
+                            {formatCurrency(addons.giftCard.perStoreFee)}/store)
                           </p>
                         </>
                       )}
@@ -330,8 +342,8 @@ export const SuccessScreen: React.FC<SuccessScreenProps> = ({
                     <div className="space-y-2 text-right font-medium">
                       {giftCard && (
                         <>
-                          <p>{formatCurrency(500)}</p>
-                          <p>{formatCurrency(stores * 30)}</p>
+                          <p>{formatCurrency(addons.giftCard.baseFee)}</p>
+                          <p>{formatCurrency(stores * addons.giftCard.perStoreFee)}</p>
                         </>
                       )}
                       {smsMessages && parseInt(smsMessages) > 0 && (
@@ -339,7 +351,7 @@ export const SuccessScreen: React.FC<SuccessScreenProps> = ({
                       )}
                       {whatsappEnabled && (
                         <>
-                          <p>{formatCurrency(630)}</p>
+                          <p>{formatCurrency(whatsappStoreFeeConfig.baseFee)}</p>
                           <p>
                             {formatCurrency(feeBreakdown.whatsapp.perStore)}
                           </p>
@@ -393,9 +405,9 @@ export const SuccessScreen: React.FC<SuccessScreenProps> = ({
                           {formatCurrency(
                             (monthlyFees -
                               (premiumSupport
-                                ? 2000 + monthlyFees * 0.1
+                                ? addons.support.baseFee + monthlyFees * addons.support.percentage
                                 : 0)) *
-                              0.2
+                              addons.dataIngestion.percentage
                           )}
                         </p>
                       )}
@@ -424,7 +436,7 @@ export const SuccessScreen: React.FC<SuccessScreenProps> = ({
                         Premium App Setup:
                       </span>
                       <span className="font-medium">
-                        {formatCurrency(15000)}
+                        {formatCurrency(setupFeesConfig.app.premium)}
                       </span>
                       {discountUnlocked && (
                         <div className="flex gap-2 pt-2">
@@ -475,7 +487,7 @@ export const SuccessScreen: React.FC<SuccessScreenProps> = ({
                         Standard App Setup:
                       </span>
                       <span className="font-medium">
-                        {formatCurrency(5000)}
+                        {formatCurrency(setupFeesConfig.app.standard)}
                       </span>
                     </div>
                   )}
@@ -483,7 +495,7 @@ export const SuccessScreen: React.FC<SuccessScreenProps> = ({
                     <div className="flex justify-between">
                       <span className="text-gray-600">PWA Setup:</span>
                       <span className="font-medium">
-                        {formatCurrency(1000)}
+                        {formatCurrency(setupFeesConfig.app.pwa)}
                       </span>
                     </div>
                   )}

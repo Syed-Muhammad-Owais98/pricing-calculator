@@ -1,21 +1,33 @@
-import { FeeBreakdown, PlanDetails, WhatsAppRates } from "../types";
+import { FeeBreakdown, PlanDetails, WhatsAppRates, AddonPricing, SetupFeesPricing, WhatsappStoreFeeConfig } from "../types";
+
+export interface MarketingEmailConfig {
+  baseFee: number;
+  pushNotificationRate: number;
+  tiers: Array<{
+    threshold: number;
+    rate: number;
+    volumeCost: number;
+    totalCost: number;
+    hasBaseFee: boolean;
+  }>;
+}
 
 export interface SuccessScreenProps {
   // User info
   firstName: string;
   lastName: string;
-  
+
   // Plan and business info
   plan: string;
   stores: number;
   transactions: number;
   marketing: number;
-  
+
   // Fees
   monthlyFees: number;
   setupFees: number;
   feeBreakdown: FeeBreakdown;
-  
+
   // Add-ons
   giftCard: boolean;
   smsEnabled: boolean;
@@ -34,7 +46,7 @@ export interface SuccessScreenProps {
   appType: string;
   dataIngestion: boolean;
   pushNotifications: boolean;
-  
+
   // Discounts
   discountUnlocked: boolean;
   discountsApplied: boolean;
@@ -48,18 +60,21 @@ export interface SuccessScreenProps {
   setAppliedSubtotalDiscount: (discount: { type: "percentage" | "fixed"; value: number }) => void;
   setAppliedDiscountReason: (reason: string) => void;
   setDiscountsApplied: (applied: boolean) => void;
-  
+
   // Connection tier
   selectedConnectionTierIndex: number | null;
-  
+
   // PDF and reset
   jsPdfLoaded: boolean;
   isPdfGenerating: boolean;
   onGeneratePDF: () => void;
   onReset: () => void;
-  
+
   // Pricing configuration (dynamic from Firestore)
   planDetails: PlanDetails;
   whatsappRates: WhatsAppRates;
+  addons: AddonPricing;
+  setupFeesConfig: SetupFeesPricing;
+  marketingEmailConfig: MarketingEmailConfig;
+  whatsappStoreFeeConfig: WhatsappStoreFeeConfig;
 }
-

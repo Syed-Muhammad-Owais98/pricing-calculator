@@ -28,6 +28,8 @@ export const SummaryTab: React.FC<SummaryTabProps> = ({
   planDetails,
   whatsappRates,
   addons,
+  marketingEmailConfig,
+  setupFeesConfig,
 
   // Add-on states
   giftCard,
@@ -117,7 +119,7 @@ export const SummaryTab: React.FC<SummaryTabProps> = ({
                 marketing={marketing}
                 pushNotifications={pushNotifications}
                 planDetails={planDetails}
-                pushNotificationRate={0.0045}
+                marketingEmailConfig={marketingEmailConfig}
               />
 
               {/* Connection Fee Tier Breakdown */}
@@ -132,7 +134,7 @@ export const SummaryTab: React.FC<SummaryTabProps> = ({
               <TransactionBreakdown stores={stores} transactions={transactions} />
 
               {/* Marketing Email Tier Breakdown */}
-              {plan !== "loyalty" && <MarketingBreakdown marketing={marketing} />}
+              {plan !== "loyalty" && <MarketingBreakdown marketing={marketing} marketingEmailConfig={marketingEmailConfig} />}
 
               {/* Add-ons Section */}
               <AddOnsSection
@@ -163,6 +165,7 @@ export const SummaryTab: React.FC<SummaryTabProps> = ({
                 feeBreakdown={feeBreakdown}
                 appType={appType}
                 dataIngestion={dataIngestion}
+                setupFeesConfig={setupFeesConfig}
               />
 
               {/* Totals Section */}

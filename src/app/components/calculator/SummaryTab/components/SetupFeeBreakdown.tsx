@@ -6,6 +6,7 @@ export const SetupFeeBreakdown: React.FC<SetupFeeBreakdownProps> = ({
   feeBreakdown,
   appType,
   dataIngestion,
+  setupFeesConfig,
 }) => {
   return (
     <div className="bg-gray-50 rounded-lg p-4">
@@ -22,19 +23,19 @@ export const SetupFeeBreakdown: React.FC<SetupFeeBreakdownProps> = ({
         {appType === "premium" && (
           <div className="flex justify-between">
             <span className="text-gray-600">Premium App Setup:</span>
-            <span className="font-medium">{formatCurrency(15000)}</span>
+            <span className="font-medium">{formatCurrency(setupFeesConfig.app.premium)}</span>
           </div>
         )}
         {appType === "standard" && (
           <div className="flex justify-between">
             <span className="text-gray-600">Standard App Setup:</span>
-            <span className="font-medium">{formatCurrency(5000)}</span>
+            <span className="font-medium">{formatCurrency(setupFeesConfig.app.standard)}</span>
           </div>
         )}
         {appType === "pwa" && (
           <div className="flex justify-between">
             <span className="text-gray-600">PWA Setup:</span>
-            <span className="font-medium">{formatCurrency(1000)}</span>
+            <span className="font-medium">{formatCurrency(setupFeesConfig.app.pwa)}</span>
           </div>
         )}
         {dataIngestion && (

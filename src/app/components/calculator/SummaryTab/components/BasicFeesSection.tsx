@@ -9,7 +9,7 @@ export const BasicFeesSection: React.FC<BasicFeesSectionProps> = ({
   marketing,
   pushNotifications,
   planDetails,
-  pushNotificationRate,
+  marketingEmailConfig,
 }) => {
   return (
     <div className="grid grid-cols-2 gap-4 text-sm">
@@ -39,12 +39,14 @@ export const BasicFeesSection: React.FC<BasicFeesSectionProps> = ({
         {plan !== "loyalty" && (
           <p>
             {(() => {
-              const selectedTier = getMarketingEmailBreakdown(marketing).find(
-                (t) => t.isSelected
-              );
+              const selectedTier = getMarketingEmailBreakdown(
+                marketing,
+                marketingEmailConfig.tiers,
+                marketingEmailConfig.baseFee
+              ).find((t) => t.isSelected);
               const display = selectedTier
-                ? selectedTier.tierName !== "Tier 1"
-                  ? selectedTier.total - 500
+                ? selectedTier.baseFee > 0
+                  ? selectedTier.total - marketingEmailConfig.baseFee
                   : selectedTier.total
                 : feeBreakdown.marketing;
               return formatCurrency(display);
@@ -52,7 +54,7 @@ export const BasicFeesSection: React.FC<BasicFeesSectionProps> = ({
           </p>
         )}
         {plan !== "loyalty" && pushNotifications && (
-          <p>{formatCurrency(marketing * pushNotificationRate)}</p>
+          <p>{formatCurrency(marketing * marketingEmailConfig.pushNotificationRate)}</p>
         )}
       </div>
     </div>

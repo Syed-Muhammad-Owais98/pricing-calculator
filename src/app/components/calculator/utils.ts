@@ -57,15 +57,13 @@ const DEFAULT_TRANSACTION_TIERS: TransactionFeeTier[] = [
   { min: 50001, max: 999999999, rate: 0.002 },
 ];
 
-// Default marketing email tiers (fallback)
+// Default marketing email tiers (fallback - mirrors Firebase data)
 const DEFAULT_MARKETING_TIERS: MarketingEmailTier[] = [
-  { threshold: 10000, rate: 0, volumeCost: 0, totalCost: 0, hasBaseFee: false },
-  { threshold: 100000, rate: 0.008, volumeCost: 800, totalCost: 1300, hasBaseFee: true },
-  { threshold: 250000, rate: 0.006, volumeCost: 1500, totalCost: 2000, hasBaseFee: true },
-  { threshold: 500000, rate: 0.0045, volumeCost: 2250, totalCost: 2750, hasBaseFee: true },
-  { threshold: 1000000, rate: 0.0034, volumeCost: 3375, totalCost: 3875, hasBaseFee: true },
-  { threshold: 2500000, rate: 0.0025, volumeCost: 6328, totalCost: 6828, hasBaseFee: true },
-  { threshold: 10000000, rate: 0.0022, volumeCost: 21516, totalCost: 22016, hasBaseFee: true },
+  { threshold: 100000, rate: 0, volumeCost: 0, totalCost: 0, hasBaseFee: false },
+  { threshold: 250000, rate: 0.001, volumeCost: 250, totalCost: 750, hasBaseFee: true },
+  { threshold: 500000, rate: 0.0008, volumeCost: 400, totalCost: 1150, hasBaseFee: true },
+  { threshold: 1000000, rate: 0.0007, volumeCost: 700, totalCost: 1800, hasBaseFee: true },
+  { threshold: 2500000, rate: 0.0005, volumeCost: 1800, totalCost: 3050, hasBaseFee: true },
 ];
 
 // Default WhatsApp store fee tiers (fallback)

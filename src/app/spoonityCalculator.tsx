@@ -1116,6 +1116,10 @@ export default function SpoonityCalculator() {
           // Pricing configuration from Firestore
           planDetails={planDetails}
           whatsappRates={whatsappRates}
+          addons={addons}
+          setupFeesConfig={setupFeesConfig}
+          marketingEmailConfig={marketingEmailConfig}
+          whatsappStoreFeeConfig={whatsappStoreFeeConfig}
         />
       ) : (
         <div className="border rounded-lg shadow-sm overflow-hidden">
@@ -1142,6 +1146,7 @@ export default function SpoonityCalculator() {
               // Pricing configuration from Firestore
               planDetails={planDetails}
               serverAutoApplyAboveStores={addons.server.autoApplyAboveStores}
+              marketingEmailTiers={marketingEmailConfig.tiers}
             />
           )}
 
@@ -1212,6 +1217,8 @@ export default function SpoonityCalculator() {
               planDetails={planDetails}
               whatsappRates={whatsappRates}
               addons={addons}
+              marketingEmailConfig={marketingEmailConfig}
+              setupFeesConfig={setupFeesConfig}
               giftCard={giftCard}
               smsEnabled={smsEnabled}
               smsMessages={smsMessages}

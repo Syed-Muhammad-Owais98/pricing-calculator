@@ -4,6 +4,7 @@ import { formatCurrency, getMarketingEmailBreakdown } from "../../utils";
 
 export const MarketingBreakdown: React.FC<MarketingBreakdownProps> = ({
   marketing,
+  marketingEmailConfig,
 }) => {
   return (
     <div className="bg-gray-50 rounded-lg p-4">
@@ -14,7 +15,7 @@ export const MarketingBreakdown: React.FC<MarketingBreakdownProps> = ({
             Total Emails: {marketing.toLocaleString()}
           </span>
         </div>
-        {getMarketingEmailBreakdown(marketing).map((tier, index) => (
+        {getMarketingEmailBreakdown(marketing, marketingEmailConfig.tiers, marketingEmailConfig.baseFee).map((tier, index) => (
           <div
             key={index}
             className={`flex justify-between p-2 rounded ${
@@ -45,9 +46,11 @@ export const MarketingBreakdown: React.FC<MarketingBreakdownProps> = ({
               >
                 {formatCurrency(tier.total)}
               </span>
-              <div className="text-xs text-gray-500">
-                ($500 base fee included)
-              </div>
+              {tier.baseFee > 0 && (
+                <div className="text-xs text-gray-500">
+                  ({formatCurrency(marketingEmailConfig.baseFee)} base fee included)
+                </div>
+              )}
               {tier.isSelected && (
                 <div className="text-xs text-purple-600">Selected</div>
               )}

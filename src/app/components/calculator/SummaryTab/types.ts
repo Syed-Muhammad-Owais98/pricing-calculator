@@ -1,4 +1,4 @@
-import { FeeBreakdown, PlanDetails, WhatsAppRates, AddonPricing } from "../types";
+import { FeeBreakdown, PlanDetails, WhatsAppRates, AddonPricing, SetupFeesPricing } from "../types";
 
 // Discount types
 export interface DiscountValue {
@@ -53,6 +53,8 @@ export interface SummaryTabProps {
   planDetails: PlanDetails;
   whatsappRates: WhatsAppRates;
   addons: AddonPricing;
+  marketingEmailConfig: MarketingEmailConfig;
+  setupFeesConfig: SetupFeesPricing;
 
   // Add-on states
   giftCard: boolean;
@@ -118,7 +120,7 @@ export interface BasicFeesSectionProps {
   pushNotifications: boolean;
   // Pricing configuration
   planDetails: PlanDetails;
-  pushNotificationRate: number;
+  marketingEmailConfig: MarketingEmailConfig;
 }
 
 export interface ConnectionFeeBreakdownProps {
@@ -133,8 +135,21 @@ export interface TransactionBreakdownProps {
   transactions: number;
 }
 
+export interface MarketingEmailConfig {
+  baseFee: number;
+  pushNotificationRate: number;
+  tiers: Array<{
+    threshold: number;
+    rate: number;
+    volumeCost: number;
+    totalCost: number;
+    hasBaseFee: boolean;
+  }>;
+}
+
 export interface MarketingBreakdownProps {
   marketing: number;
+  marketingEmailConfig: MarketingEmailConfig;
 }
 
 export interface AddOnsSectionProps {
@@ -165,6 +180,7 @@ export interface SetupFeeBreakdownProps {
   feeBreakdown: FeeBreakdown;
   appType: string;
   dataIngestion: boolean;
+  setupFeesConfig: SetupFeesPricing;
 }
 
 export interface TotalsSectionProps {

@@ -14,6 +14,7 @@ interface CalculatorInputTabProps {
   // Pricing configuration (dynamic from Firestore)
   planDetails: PlanDetails;
   serverAutoApplyAboveStores: number;
+  marketingEmailTiers: Array<{ threshold: number }>;
 }
 
 export const CalculatorInputTab: React.FC<CalculatorInputTabProps> = ({
@@ -29,6 +30,7 @@ export const CalculatorInputTab: React.FC<CalculatorInputTabProps> = ({
   // Pricing configuration
   planDetails,
   serverAutoApplyAboveStores,
+  marketingEmailTiers,
 }) => {
   return (
     <div className="p-6">
@@ -180,7 +182,7 @@ export const CalculatorInputTab: React.FC<CalculatorInputTabProps> = ({
               </div>
 
               <div className="flex flex-wrap gap-2">
-                {[5000, 10000, 50000, 100000, 500000, 1000000].map((value) => (
+                {marketingEmailTiers.map(({ threshold: value }) => (
                   <button
                     key={value}
                     onClick={() => setMarketing(value)}
@@ -190,7 +192,6 @@ export const CalculatorInputTab: React.FC<CalculatorInputTabProps> = ({
                         : "spoonity-form border-gray-200 text-gray-700 hover:bg-gray-100"
                     }`}
                   >
-                    +2
                     {value.toLocaleString()}
                   </button>
                 ))}
