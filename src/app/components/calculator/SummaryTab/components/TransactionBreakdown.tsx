@@ -23,7 +23,7 @@ export const TransactionBreakdown: React.FC<TransactionBreakdownProps> = ({
           <div key={index} className="flex justify-between">
             <span className="text-gray-600">
               {tier.volume.toLocaleString()} transactions ($
-              {tier.rate.toFixed(1)}/transaction):
+              {tier.rate}/transaction):
             </span>
             <span className="font-medium">{formatCurrency(tier.total)}</span>
           </div>
@@ -32,4 +32,3 @@ export const TransactionBreakdown: React.FC<TransactionBreakdownProps> = ({
     </div>
   );
 };
-
