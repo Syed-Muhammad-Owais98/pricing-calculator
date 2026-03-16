@@ -196,12 +196,13 @@ export default function SpoonityCalculator() {
   // Token validation function
   const validateToken = async (inputToken: string): Promise<boolean> => {
     try {
-      const decodedString = atob(inputToken);
-      const tokenData = JSON.parse(decodedString);
-      const paraphraseCheck =
-        tokenData.paraphrase === process.env.NEXT_PUBLIC_PARAPHASE_KEY;
-      const expiryCheck = new Date(tokenData.expiresAt) > new Date();
-      return paraphraseCheck && expiryCheck;
+      const response = await fetch("/api/validate-token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: inputToken }),
+      });
+      const data = await response.json();
+      return data.valid === true;
     } catch (error) {
       console.error("Error validating token:", error);
       return false;

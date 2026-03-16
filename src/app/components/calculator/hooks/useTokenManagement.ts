@@ -31,12 +31,13 @@ export function useTokenManagement({
   // Function to validate token
   const validateToken = useCallback(async (inputToken: string): Promise<boolean> => {
     try {
-      const decodedString = atob(inputToken);
-      const tokenData = JSON.parse(decodedString);
-      console.log("aaaaa", tokenData.paraphrase)
-      const paraphraseCheck = tokenData.paraphrase === process.env.NEXT_PUBLIC_PARAPHASE_KEY;
-      const expiryCheck = new Date(tokenData.expiresAt) > new Date();
-      return paraphraseCheck && expiryCheck;
+      const response = await fetch("/api/validate-token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: inputToken }),
+      });
+      const data = await response.json();
+      return data.valid === true;
     } catch (error) {
       console.error("Error validating token:", error);
       return false;
